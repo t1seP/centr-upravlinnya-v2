@@ -1,4 +1,19 @@
-import { Client, Campaign, Decision, AIAgent, AutomationScript, BalanceRecord, SearchTermItem, Document, AuditLog } from './types';
+import { 
+  Client, 
+  Campaign, 
+  Decision, 
+  AIAgent, 
+  AutomationScript, 
+  BalanceRecord, 
+  SearchTermItem, 
+  Document, 
+  AuditLog,
+  AgentChatMessage,
+  AdAsset,
+  AdGroup,
+  CampaignDraft,
+  StagedChange
+} from './types';
 
 export const INITIAL_CLIENTS: Client[] = [
   {
@@ -17,7 +32,9 @@ export const INITIAL_CLIENTS: Client[] = [
     nextStep: 'Верифікація пошукових запитів в уїкенд-кампаніях',
     currency: 'UAH',
     status: 'warning',
-    industry: 'E-commerce, Краса & Догляд'
+    industry: 'E-commerce, Краса & Догляд',
+    optimizationPriority: 'balanced',
+    agentNotes: ''
   },
   {
     id: 'c2',
@@ -35,7 +52,9 @@ export const INITIAL_CLIENTS: Client[] = [
     nextStep: 'Поповнити баланс аккаунта Google Ads',
     currency: 'UAH',
     status: 'warning',
-    industry: 'Автосервіс, Запчастини'
+    industry: 'Автосервіс, Запчастини',
+    optimizationPriority: 'balanced',
+    agentNotes: ''
   },
   {
     id: 'c3',
@@ -53,7 +72,9 @@ export const INITIAL_CLIENTS: Client[] = [
     nextStep: 'Контроль за новими категоріями металопрокату',
     currency: 'UAH',
     status: 'active',
-    industry: 'B2B Виробництво, Важка промисловість'
+    industry: 'B2B Виробництво, Важка промисловість',
+    optimizationPriority: 'balanced',
+    agentNotes: ''
   },
   {
     id: 'c4',
@@ -71,7 +92,9 @@ export const INITIAL_CLIENTS: Client[] = [
     nextStep: 'Аналіз результативності за гео-модифікаторами',
     currency: 'UAH',
     status: 'active',
-    industry: 'Медичні послуги, Клініки'
+    industry: 'Медичні послуги, Клініки',
+    optimizationPriority: 'balanced',
+    agentNotes: ''
   }
 ];
 
@@ -223,7 +246,8 @@ export const INITIAL_DECISIONS: Decision[] = [
     payload: {
       negatives: ['безкоштовно', 'рецепт', 'завантажити', 'книга', 'своїми руками', 'ютуб', 'вебінар', 'курси', 'історія', 'виробництво', 'хімія', 'як зробити', 'англійською', 'вакансії']
     },
-    createdAt: '2026-05-31T12:30:11Z'
+    createdAt: '2026-05-31T12:30:11Z',
+    feedbackStats: { timesRejected: 0, timesApproved: 4 }
   },
   {
     id: 'dec-2',
@@ -240,7 +264,8 @@ export const INITIAL_DECISIONS: Decision[] = [
       amountNeeded: 25000,
       details: 'Рекомендоване поповнення на 5 днів життєдіяльності аккаунту: 25,000 UAH.'
     },
-    createdAt: '2026-05-31T15:45:00Z'
+    createdAt: '2026-05-31T15:45:00Z',
+    feedbackStats: { timesRejected: 0, timesApproved: 8 }
   },
   {
     id: 'dec-3',
@@ -256,7 +281,8 @@ export const INITIAL_DECISIONS: Decision[] = [
     payload: {
       details: 'Рекомендуємо перевірити чи працює кнопка відправки на лендингу https://alpha-metal.com.ua/order та суміжні редіректи.'
     },
-    createdAt: '2026-05-31T09:10:22Z'
+    createdAt: '2026-05-31T09:10:22Z',
+    feedbackStats: { timesRejected: 0, timesApproved: 1 }
   },
   {
     id: 'dec-4',
@@ -273,7 +299,8 @@ export const INITIAL_DECISIONS: Decision[] = [
       keywordsToPause: ['[купити креми елітні]', '"косметика львів ціна"'],
       details: 'Заощадження: ~8,600 UAH на місяць після павзи.'
     },
-    createdAt: '2026-05-31T11:05:00Z'
+    createdAt: '2026-05-31T11:05:00Z',
+    feedbackStats: { timesRejected: 2, timesApproved: 1, lastRejectedAt: '2026-05-20' }
   },
   {
     id: 'dec-5',
@@ -289,7 +316,8 @@ export const INITIAL_DECISIONS: Decision[] = [
     payload: {
       details: 'Зміна модифікатора часу (+15% на СБ-НД) підвищить обсяг конверсій при стабільному рівні рентабельності.'
     },
-    createdAt: '2026-05-30T18:00:00Z'
+    createdAt: '2026-05-30T18:00:00Z',
+    feedbackStats: { timesRejected: 1, timesApproved: 2 }
   }
 ];
 
@@ -303,7 +331,9 @@ export const INITIAL_AGENTS: AIAgent[] = [
     statsValue: '14 слів цього тижня',
     lastRunTime: '31.05.2026, 16:15',
     resultSummary: 'Нещодавній аналіз виявив 14 сміттєвих фраз у клієнта "Бета Косметика", сформовано high-priority екшн.',
-    capabilities: ['Авто-класифікація намірів', 'Виявлення бренд-канібалізації', 'Обчислення маржинальних втрат']
+    capabilities: ['Авто-класифікація намірів', 'Виявлення бренд-канібалізації', 'Обчислення маржинальних втрат'],
+    memoryStats: { totalDecisions: 23, approvalRate: 91, lastMemoryUpdate: '31.05.2026, 10:00' },
+    learningStatus: 'active'
   },
   {
     id: 'agent_metrics_analyst',
@@ -314,18 +344,22 @@ export const INITIAL_AGENTS: AIAgent[] = [
     statsValue: '1 виявлено (Альфа)',
     lastRunTime: '31.05.2026, 15:30',
     resultSummary: 'Тренди стабільні, крім тимчасового падіння відгуку по B2B формах Alpha Metal.',
-    capabilities: ['Аналіз часових рядів', 'Статистичний Z-score аномалій', 'Ковзне середнє для трендів']
+    capabilities: ['Аналіз часових рядів', 'Статистичний Z-score аномалій', 'Ковзне середнє для трендів'],
+    memoryStats: { totalDecisions: 8, approvalRate: 75, lastMemoryUpdate: '28.05.2026, 08:00' },
+    learningStatus: 'active'
   },
   {
     id: 'agent_budget_watcher',
     name: 'Budget Watcher',
     desc: 'Контролює добове вичерпання коштів, темпи "вигорання" бюджету, залишки на білінг-акаунтах Google і надсилає алерти для запобігання зупинці.',
     status: 'active',
-    statsLabel: 'Клієнти під загрозою',
+    statsLabel: 'Клієнти под загрозою',
     statsValue: '1 критичний (Дельта)',
     lastRunTime: '31.05.2026, 16:35',
     resultSummary: 'Сформовано критичний алерт по Дельта Авто (залишилось менше ніж 0.5 днів роботи). Гамма і Альфа мають стабільні баланси.',
-    capabilities: ['Екстраполяція вичерпання коштів', 'Планування бюджетних залишків', 'Моніторинг лімітів оплат']
+    capabilities: ['Екстраполяція вичерпання коштів', 'Планування бюджетних залишків', 'Моніторинг лімітів оплат'],
+    memoryStats: { totalDecisions: 15, approvalRate: 100, lastMemoryUpdate: '31.05.2026, 14:00' },
+    learningStatus: 'active'
   },
   {
     id: 'agent_campaign_doctor',
@@ -336,7 +370,9 @@ export const INITIAL_AGENTS: AIAgent[] = [
     statsValue: '77.5%',
     lastRunTime: '31.05.2026, 12:00',
     resultSummary: 'Рекомендує зупинити 2 неефективні ключові слова у Бета Косметика. Потребує підтвердження.',
-    capabilities: ['Аналіз Quality Score', 'Діагностика битих URL', 'Розрахунок перекриття аукціонів']
+    capabilities: ['Аналіз Quality Score', 'Діагностика битих URL', 'Розрахунок перекриття аукціонів'],
+    memoryStats: { totalDecisions: 5, approvalRate: 60, lastMemoryUpdate: '25.05.2026, 12:00' },
+    learningStatus: 'insufficient_data'
   }
 ];
 
@@ -594,4 +630,449 @@ export const FOURTEEN_DAYS_SPEND_DATA = [
   { date: '29/05', spend: 9100, target: 8500, conversions: 28 },
   { date: '30/05', spend: 6800, target: 6000, conversions: 21 },
   { date: '31/05', spend: 6920, target: 6000, conversions: 22 }
+];
+
+export const INITIAL_CHAT_MESSAGES: AgentChatMessage[] = [
+  {
+    id: 'msg-1',
+    role: 'agent',
+    content: 'Привіт. Я готовий до роботи. Поточний фокус: Дельта Авто потребує термінового поповнення балансу. Є питання по будь-якому клієнту?',
+    timestamp: '31.05.2026, 16:35',
+    isLoading: false
+  }
+];
+
+export const INITIAL_AD_ASSETS: AdAsset[] = [
+  {
+    id: 'asset-1',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'headline',
+    text: 'Корейська косметика в Україні',
+    performanceLabel: 'BEST',
+    impressions: 8900,
+    clicks: 720,
+    pinned: 1,
+    aiScore: 95,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-2',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'headline',
+    text: 'Купити крем для обличчя',
+    performanceLabel: 'GOOD',
+    impressions: 4200,
+    clicks: 340,
+    pinned: null,
+    aiScore: 78,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-3',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'headline',
+    text: 'Косметика',
+    performanceLabel: 'LOW',
+    impressions: 1200,
+    clicks: 50,
+    pinned: null,
+    aiScore: 22,
+    aiSuggestion: "Занадто загальний. Додайте УТП або гео: 'Корейська косметика Київ — доставка за день'",
+    status: 'active'
+  },
+  {
+    id: 'asset-4',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'headline',
+    text: 'Офіційний магазин',
+    performanceLabel: 'UNRATED',
+    impressions: 200,
+    clicks: 15,
+    pinned: null,
+    aiScore: 45,
+    aiSuggestion: "Не містить ключового слова. Уточніть що саме офіційний",
+    status: 'active'
+  },
+  {
+    id: 'asset-5',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'headline',
+    text: 'Знижки до 30% на догляд',
+    performanceLabel: 'GOOD',
+    impressions: 3100,
+    clicks: 250,
+    pinned: null,
+    aiScore: 81,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-6',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'headline',
+    text: 'Професійний догляд за шкірою',
+    performanceLabel: 'BEST',
+    impressions: 6500,
+    clicks: 512,
+    pinned: 2,
+    aiScore: 92,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-7',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'headline',
+    text: 'Замовити натуральні креми',
+    performanceLabel: 'GOOD',
+    impressions: 1800,
+    clicks: 120,
+    pinned: null,
+    aiScore: 74,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-8',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'headline',
+    text: 'Дешевий крем',
+    performanceLabel: 'LOW',
+    impressions: 950,
+    clicks: 38,
+    pinned: null,
+    aiScore: 31,
+    aiSuggestion: "Слово 'дешевий' знижує цінність бренду косметики. Використовуйте 'Доступна якість' або 'Привабливі ціни'.",
+    status: 'active'
+  },
+  {
+    id: 'asset-9',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'headline',
+    text: 'Оригінал Корея оптом й уроздріб',
+    performanceLabel: 'GOOD',
+    impressions: 2400,
+    clicks: 198,
+    pinned: 3,
+    aiScore: 86,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-10',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'headline',
+    text: 'Купити косметику недорого',
+    performanceLabel: 'LOW',
+    impressions: 1100,
+    clicks: 44,
+    pinned: null,
+    aiScore: 38,
+    aiSuggestion: "Замініть 'недорого' на конкретну вигоду, наприклад 'Знижка -10% на перше замовлення'",
+    status: 'active'
+  },
+  // Descriptions (four)
+  {
+    id: 'asset-11',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'description',
+    text: "Офіційний дистриб'ютор корейських брендів. Оригінальна косметика, сертифікати якості.",
+    performanceLabel: 'BEST',
+    impressions: 15400,
+    clicks: 1250,
+    pinned: 1,
+    aiScore: 94,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-12',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'description',
+    text: "Широкий вибір засобів для догляду за обличчям та тілом. Швидка доставка по всій Україні.",
+    performanceLabel: 'GOOD',
+    impressions: 9800,
+    clicks: 740,
+    pinned: null,
+    aiScore: 82,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-13',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'description',
+    text: "Купити корейські креми недорого тут в нашому магазині відмінної якості за низькими цінами.",
+    performanceLabel: 'LOW',
+    impressions: 1400,
+    clicks: 65,
+    pinned: null,
+    aiScore: 25,
+    aiSuggestion: "У заклику до дії бракує унікальності. Спробуйте: 'Замовляйте сертифіковану косметику зі знижкою 10% на першу покупку'",
+    status: 'active'
+  },
+  {
+    id: 'asset-14',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'description',
+    text: "Консультація косметолога безкоштовно. Підберемо індивідуальну програму догляду для вашої шкіри.",
+    performanceLabel: 'GOOD',
+    impressions: 11200,
+    clicks: 890,
+    pinned: 2,
+    aiScore: 89,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-sitelink-1',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'sitelink',
+    text: "Контакти та Карта – Про магазин Бета Косметика",
+    performanceLabel: 'BEST',
+    impressions: 4500,
+    clicks: 390,
+    pinned: null,
+    aiScore: 90,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-callout-1',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'callout',
+    text: "100% Оригінальна косметика",
+    performanceLabel: 'BEST',
+    impressions: 12000,
+    clicks: 920,
+    pinned: null,
+    aiScore: 92,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-callout-2',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'callout',
+    text: "Доставка за 24 години",
+    performanceLabel: 'GOOD',
+    impressions: 6500,
+    clicks: 440,
+    pinned: null,
+    aiScore: 85,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-snippet-1',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'structured_snippet',
+    text: "Бренди: Laneige, Cosrx, Dr.Jart+, Innisfree, Some By Mi",
+    performanceLabel: 'GOOD',
+    impressions: 5400,
+    clicks: 310,
+    pinned: null,
+    aiScore: 88,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-call-1',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'call',
+    text: "+38 (067) 123-4567",
+    performanceLabel: 'BEST',
+    impressions: 2900,
+    clicks: 180,
+    pinned: null,
+    aiScore: 95,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-image-1',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'image',
+    text: "https://images.unsplash.com/photo-1608248597481-496100c80836?w=200",
+    performanceLabel: 'BEST',
+    impressions: 15100,
+    clicks: 1420,
+    pinned: null,
+    aiScore: 96,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-promo-1',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'promotion',
+    text: "Знижка 15% до Дня Матері на всі набори",
+    performanceLabel: 'GOOD',
+    impressions: 4800,
+    clicks: 530,
+    pinned: null,
+    aiScore: 87,
+    aiSuggestion: null,
+    status: 'active'
+  },
+  {
+    id: 'asset-price-1',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'price',
+    text: "Зволожуючий крем – від 450 UAH; Антивіковий крем – від 750 UAH",
+    performanceLabel: 'LOW',
+    impressions: 3200,
+    clicks: 110,
+    pinned: null,
+    aiScore: 40,
+    aiSuggestion: "Ціни дещо завищені порівняно з конкурентами в регіоні Київ. Можна додати інфо про безкоштовну доставку при купівлі від 1000 грн.",
+    status: 'active'
+  },
+  {
+    id: 'asset-lead-1',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    adGroupName: 'Креми для обличчя',
+    type: 'lead_form',
+    text: "Запишіться на безкоштовний аудит типу шкіри",
+    performanceLabel: 'UNRATED',
+    impressions: 350,
+    clicks: 22,
+    pinned: null,
+    aiScore: 78,
+    aiSuggestion: "Підвищіть помітність лід-форми: розіграйте міні-набір за проходження тесту.",
+    status: 'active'
+  }
+];
+
+export const INITIAL_AD_GROUPS: AdGroup[] = [
+  {
+    id: 'ag-1',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    name: 'Креми для обличчя',
+    status: 'active',
+    keywords: ['[корейські креми]', '"крем для обличчя купити"', 'зволожуючий крем'],
+    negativeKeywords: ['безкоштовно', 'рецепт', 'своїми руками'],
+    assets: [], // Done in code by filtering assets list
+    healthScore: 78
+  },
+  {
+    id: 'ag-2',
+    clientId: 'c1',
+    campaignId: 'g1_1',
+    name: 'Сироватки та догляд',
+    status: 'active',
+    keywords: ['"сироватка з гіалуроновою кислотою"', '[купити сироватку київ]', 'догляд за шкірою'],
+    negativeKeywords: ['дешево', 'форум', 'скачати'],
+    assets: [],
+    healthScore: 85
+  }
+];
+
+export const INITIAL_CAMPAIGN_DRAFTS: CampaignDraft[] = [
+  {
+    id: 'draft-1',
+    clientId: 'c2',
+    name: 'Delta_UA_Search_Diagnostics_New',
+    type: 'search',
+    dailyBudget: 1500,
+    targetCpa: 550,
+    biddingStrategy: 'TARGET_CPA',
+    geoTargets: ['Київ', 'Харків', 'Дніпро'],
+    adGroups: [{
+      name: 'Діагностика двигуна',
+      keywords: ['[діагностика двигуна київ]', '"діагностика авто"'],
+      negatives: ['безкоштовно', 'своїми руками'],
+      headlines: ['Діагностика двигуна Київ', 'Перевірка авто за 1 годину', 'Професійні автомайстри'],
+      descriptions: ['Повна комп\'ютерна діагностика. Досвідчені майстри.', 'Сучасне обладнання для надійного сканування вашого авто. Телефонуйте пишіть!']
+    }],
+    status: 'draft',
+    createdAt: '2026-05-31T10:00:00Z',
+    notes: 'Нова кампанія замість Display Remarketing'
+  }
+];
+
+export const INITIAL_STAGED_CHANGES: StagedChange[] = [
+  {
+    id: 'stg-1',
+    clientId: 'c1',
+    clientName: 'Бета Косметика',
+    type: 'add_negatives',
+    description: 'Додати 14 мінус-слів в брендову кампанію',
+    payload: { negatives: ['безкоштовно', 'рецепт', 'завантажити'], campaignId: 'g1_1' },
+    source: 'agent_decision',
+    decisionId: 'dec-1',
+    stagedAt: '2026-05-31T12:30:00Z',
+    status: 'pending'
+  },
+  {
+    id: 'stg-2',
+    clientId: 'c1',
+    clientName: 'Бета Косметика',
+    type: 'pause_asset',
+    description: "Призупинити заголовок 'Косметика' (LOW, 18 днів)",
+    payload: { assetId: 'a-3', text: 'Косметика' },
+    source: 'manual',
+    stagedAt: '2026-05-31T14:00:00Z',
+    status: 'pending'
+  },
+  {
+    id: 'stg-3',
+    clientId: 'c2',
+    clientName: 'Дельта Авто',
+    type: 'pause_keyword',
+    description: "Призупинити ключ 'безкоштовна діагностика авто' (0 конверсій, 2100 UAH)",
+    payload: { keywordId: 'kw-5', text: 'безкоштовна діагностика авто' },
+    source: 'agent_decision',
+    decisionId: 'dec-4',
+    stagedAt: '2026-05-31T14:10:00Z',
+    status: 'pending'
+  }
 ];

@@ -13,6 +13,10 @@ import Automations from './pages/Automations';
 import ManualTrigger from './pages/ManualTrigger';
 import DocLibrary from './pages/DocLibrary';
 import AuditLogs from './pages/AuditLogs';
+import AgentChatWidget from './components/AgentChatWidget';
+import { MessageSquare } from 'lucide-react';
+import CampaignBuilder from './pages/CampaignBuilder';
+import AdAssets from './pages/AdAssets';
 
 // Mock datasets
 import {
@@ -25,10 +29,30 @@ import {
   INITIAL_SEARCH_TERMS,
   INITIAL_DOCUMENTS,
   INITIAL_LOGS,
-  FOURTEEN_DAYS_SPEND_DATA
+  INITIAL_CHAT_MESSAGES,
+  INITIAL_AD_ASSETS,
+  INITIAL_AD_GROUPS,
+  INITIAL_CAMPAIGN_DRAFTS,
+  FOURTEEN_DAYS_SPEND_DATA,
+  INITIAL_STAGED_CHANGES
 } from './mockData';
 
-import { Client, Campaign, Decision, AIAgent, AutomationScript, BalanceRecord, SearchTermItem, Document, AuditLog } from './types';
+import { 
+  Client, 
+  Campaign, 
+  Decision, 
+  AIAgent, 
+  AutomationScript, 
+  BalanceRecord, 
+  SearchTermItem, 
+  Document, 
+  AuditLog,
+  AgentChatMessage,
+  AdAsset,
+  AdGroup,
+  CampaignDraft,
+  StagedChange
+} from './types';
 
 export default function App() {
   
@@ -36,6 +60,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<string>('command-center');
   const [selectedClientId, setSelectedClientId] = useState<string>('c1');
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark'>('light');
+  const [isChatOpen, setIsChatOpen] = useState(false);
   
   // Searching
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -50,6 +75,12 @@ export default function App() {
   const [searchTerms, setSearchTerms] = useState<SearchTermItem[]>(INITIAL_SEARCH_TERMS);
   const [documents, setDocuments] = useState<Document[]>(INITIAL_DOCUMENTS);
   const [logs, setLogs] = useState<AuditLog[]>(INITIAL_LOGS);
+
+  // New States for AI integration features
+  const [chatMessages, setChatMessages] = useState<AgentChatMessage[]>(INITIAL_CHAT_MESSAGES);
+  const [adAssets, setAdAssets] = useState<AdAsset[]>(INITIAL_AD_ASSETS);
+  const [adGroups, setAdGroups] = useState<AdGroup[]>(INITIAL_AD_GROUPS);
+  const [campaignDrafts, setCampaignDrafts] = useState<CampaignDraft[]>(INITIAL_CAMPAIGN_DRAFTS);
 
   // Sync / Audit states
   const [isAuditing, setIsAuditing] = useState(false);
@@ -76,7 +107,20 @@ export default function App() {
     if (!matchedDecision) return;
 
     // Approve locally
-    setDecisions(prev => prev.map(d => d.id === id ? { ...d, status: 'approved' } : d));
+    setDecisions(prev => prev.map(d => {
+      if (d.id === id) {
+        const stats = d.feedbackStats || { timesRejected: 0, timesApproved: 0 };
+        return { 
+          ...d, 
+          status: 'approved',
+          feedbackStats: {
+            ...stats,
+            timesApproved: stats.timesApproved + 1
+          }
+        };
+      }
+      return d;
+    }));
 
     // Improve health score dynamically
     setClients(prev => prev.map(c => {
@@ -108,12 +152,30 @@ export default function App() {
     );
   };
 
-  const handleRejectDecision = (id: string) => {
+  const handleRejectDecision = (id: string, note?: string) => {
     const matchedDecision = decisions.find(d => d.id === id);
     if (!matchedDecision) return;
 
-    setDecisions(prev => prev.map(d => d.id === id ? { ...d, status: 'rejected' } : d));
-    handleAddNewLog(`Рішення відхилено: "${matchedDecision.title}" відмінено спеціалістом.`, 'warning');
+    setDecisions(prev => prev.map(d => {
+      if (d.id === id) {
+        const stats = d.feedbackStats || { timesRejected: 0, timesApproved: 0 };
+        return { 
+          ...d, 
+          status: 'rejected',
+          rejectionNote: note,
+          feedbackStats: {
+            ...stats,
+            timesRejected: stats.timesRejected + 1,
+            lastRejectedAt: new Date().toLocaleDateString('uk-UA')
+          }
+        };
+      }
+      return d;
+    }));
+    handleAddNewLog(
+      `Рішення відхилено: "${matchedDecision.title}" відмінено спеціалістом.${note ? ` Причина: ${note}` : ''}`, 
+      'warning'
+    );
   };
 
   const handlePostponeDecision = (id: string) => {
@@ -170,6 +232,88 @@ export default function App() {
 
   const handleDismissSearchTerm = (id: string) => {
     setSearchTerms(prev => prev.map(t => t.id === id ? { ...t, status: 'dismissed' } : t));
+  };
+
+  // Chat messaging
+  const handleSendChatMessage = (text: string) => {
+    // Add User message
+    const userMsg: AgentChatMessage = {
+      id: `msg-${Date.now()}`,
+      role: 'user',
+      content: text,
+      timestamp: new Date().toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    setChatMessages(prev => [...prev, userMsg]);
+    
+    // Auto simulate Agent response after 1 second
+    const agentMsgId = `msg-${Date.now() + 1}`;
+    const botLoadingMsg: AgentChatMessage = {
+      id: agentMsgId,
+      role: 'agent',
+      content: '',
+      timestamp: new Date().toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' }),
+      isLoading: true
+    };
+    
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, botLoadingMsg]);
+    }, 400);
+
+    setTimeout(() => {
+      setChatMessages(prev => prev.map(m => m.id === agentMsgId ? {
+        ...m,
+        content: `Я опрацював ваш запит у контексті кабінету реклами "${clients.find(c => c.id === selectedClientId)?.name || 'всіх акаунтів'}". Платформа готова завантажити релевантні пошукові запити, оптимізувати ключі чи згенерувати рекламні оголошення для вас! Відомо, що tCPA тримається в рамках норми.`,
+        isLoading: false
+      } : m));
+    }, 1500);
+  };
+
+  // Ad Asset Handlers
+  const handleAddAssets = (newAssets: Omit<AdAsset, 'id'>[]) => {
+    const created = newAssets.map(asset => ({
+      ...asset,
+      id: `asset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    }));
+    setAdAssets(prev => [...prev, ...created]);
+    handleAddNewLog(`Активи реклами: Додано ${newAssets.length} нових рекламних активів (заголовків/описів) для автоматичного тестування RSA.`, 'success');
+  };
+
+  const handleUpdateAsset = (id: string, update: Partial<AdAsset>) => {
+    setAdAssets(prev => prev.map(a => a.id === id ? { ...a, ...update } : a));
+    const asset = adAssets.find(a => a.id === id);
+    if (asset) {
+      handleAddNewLog(`Активи реклами: Оновлено статус для "${asset.text}" на "${update.status}"`, 'info');
+    }
+  };
+
+  // Campaign Builder Handlers
+  const handleSaveCampaignDraft = (draft: CampaignDraft) => {
+    setCampaignDrafts(prev => [...prev, draft]);
+    handleAddNewLog(`Кампанії з Агентом: Збережено нову чорнетку кампанії "${draft.name}"`, 'info');
+  };
+
+  const handleSubmitCampaignForApproval = (draft: CampaignDraft) => {
+    const newDecisionId = `dec-builder-${Date.now()}`;
+    const newDecision: Decision = {
+      id: newDecisionId,
+      clientId: draft.clientId,
+      clientName: clients.find(c => c.id === draft.clientId)?.name || 'Клієнт',
+      title: `Затвердити розгортання структури кампанії "${draft.name}" через API`,
+      desc: `Рекомендовано AI-агентом на базі заповненої форми: щоденний бюджет - ${draft.dailyBudget} UAH, tCPA - ${draft.targetCpa || 350} UAH. Створено з 2 групами оголошень та підготовленими RSA креативами.`,
+      priority: 'high',
+      status: 'pending',
+      actionType: 'campaign_create',
+      source: 'agent',
+      sourceName: 'Smart Campaign Builder',
+      payload: { details: `Щоденний бюджет - ${draft.dailyBudget} UAH, Стратегія ставок - ${draft.biddingStrategy}` },
+      createdAt: new Date().toLocaleDateString('uk-UA'),
+      feedbackStats: { timesRejected: 0, timesApproved: 0 }
+    };
+    
+    setDecisions(prev => [newDecision, ...prev]);
+    setCampaignDrafts(prev => [...prev, { ...draft, status: 'sent_to_ads' }]);
+    handleAddNewLog(`Кампанії з Агентом: Кампанію "${draft.name}" надіслано на узгодження директору. Створено нову AI рекомендацію.`, 'success');
   };
 
   // Manual code triggers
@@ -338,6 +482,29 @@ export default function App() {
             searchQuery={searchQuery}
           />
         );
+
+      case 'campaign-builder':
+        return (
+          <CampaignBuilder
+            clients={clients}
+            currentTheme={currentTheme}
+            onSaveDraft={handleSaveCampaignDraft}
+            onSubmitForApproval={handleSubmitCampaignForApproval}
+          />
+        );
+      case 'ad-assets':
+        return (
+          <AdAssets
+            clients={clients}
+            campaigns={campaigns}
+            adAssets={adAssets}
+            adGroups={adGroups}
+            currentTheme={currentTheme}
+            onAddAssets={handleAddAssets}
+            onUpdateAsset={handleUpdateAsset}
+            initialClientId={selectedClientId}
+          />
+        );
       default:
         return <div className="text-center py-12 text-slate-400">Сторінка в процесі розробки...</div>;
     }
@@ -360,6 +527,7 @@ export default function App() {
         pendingDecisionsCount={decisions.filter(d => d.status === 'pending').length}
         currentTheme={currentTheme}
         setCurrentTheme={setCurrentTheme}
+        onToggleChatWidget={() => setIsChatOpen(prev => !prev)}
       />
 
       {/* Main viewport area */}
@@ -386,6 +554,25 @@ export default function App() {
           {renderActiveTab()}
         </main>
       </div>
+
+      {/* Floating Chat Button (56px, violet BG, MessageSquare icon) */}
+      <button
+        onClick={() => setIsChatOpen(!isChatOpen)}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-violet-650 hover:bg-violet-755 text-white shadow-2xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95 duration-150 outline-none"
+        title="Чат з Агентом"
+      >
+        <MessageSquare size={24} />
+      </button>
+
+      {/* Floating Chat Panel widget */}
+      <AgentChatWidget
+        clients={clients}
+        chatMessages={chatMessages}
+        onSendMessage={handleSendChatMessage}
+        currentTheme={currentTheme}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+      />
 
     </div>
   );

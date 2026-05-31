@@ -21,6 +21,9 @@ interface HeaderProps {
   currentTheme: 'light' | 'dark';
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  onOpenUploadModal: () => void;
+  pendingStagedChangesCount: number;
+  isUploading: boolean;
 }
 
 export default function Header({
@@ -31,7 +34,10 @@ export default function Header({
   logs,
   currentTheme,
   searchQuery,
-  setSearchQuery
+  setSearchQuery,
+  onOpenUploadModal,
+  pendingStagedChangesCount,
+  isUploading
 }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -119,6 +125,31 @@ export default function Header({
             <>
               <RefreshCw size={13} className="hover:rotate-180 transition-transform duration-500" />
               <span>Запустити перевірку</span>
+            </>
+          )}
+        </button>
+
+        {/* Upload Staging button */}
+        <button
+          onClick={onOpenUploadModal}
+          disabled={pendingStagedChangesCount === 0 || isUploading}
+          className={`px-3 py-1.5 rounded text-xs font-semibold font-sans flex items-center gap-1.5 cursor-pointer select-none transition ${
+            pendingStagedChangesCount === 0
+              ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-transparent'
+              : isUploading
+              ? 'bg-indigo-600/20 text-indigo-400 cursor-wait'
+              : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/15'
+          }`}
+        >
+          {isUploading ? (
+            <>
+              <Loader2 size={13} className="animate-spin text-indigo-400" />
+              <span>Вигружається...</span>
+            </>
+          ) : (
+            <>
+              <span>📤</span>
+              <span>Вигрузити в Google Ads ({pendingStagedChangesCount})</span>
             </>
           )}
         </button>

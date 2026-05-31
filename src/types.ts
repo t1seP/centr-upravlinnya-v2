@@ -15,6 +15,8 @@ export interface Client {
   currency: string;
   status: 'active' | 'paused' | 'warning';
   industry: string;
+  optimizationPriority?: 'cpa' | 'ctr' | 'reach' | 'balanced';
+  agentNotes?: string;
 }
 
 export interface Campaign {
@@ -39,10 +41,10 @@ export interface Decision {
   priority: 'high' | 'medium' | 'low';
   title: string;
   desc: string;
-  actionType: 'add_negatives' | 'refill_balance' | 'check_drop' | 'pause_keywords' | 'optimize_bids';
+  actionType: 'add_negatives' | 'refill_balance' | 'check_drop' | 'pause_keywords' | 'optimize_bids' | 'campaign_create' | 'update_assets';
   source: 'script' | 'agent' | 'ads_api';
   sourceName: string; // e.g. "Search Terms Agent", "balances.py"
-  status: 'pending' | 'approved' | 'rejected' | 'deferred';
+  status: 'pending' | 'approved' | 'rejected' | 'deferred' | 'staged';
   payload: {
     negatives?: string[];
     amountNeeded?: number;
@@ -50,6 +52,12 @@ export interface Decision {
     details?: string;
   };
   createdAt: string;
+  feedbackStats?: {
+    timesRejected: number;    // скільки разів такий тип рекомендації відхилявся для цього клієнта
+    timesApproved: number;    // скільки разів приймався
+    lastRejectedAt?: string;  // дата останнього відхилення
+  };
+  rejectionNote?: string;     // нотатка Тимофія при відхиленні (опціонально)
 }
 
 export interface AIAgent {
@@ -62,6 +70,12 @@ export interface AIAgent {
   lastRunTime: string;
   resultSummary: string;
   capabilities: string[];
+  memoryStats: {
+    totalDecisions: number;      // скільки рішень в пам'яті
+    approvalRate: number;        // % прийнятих рекомендацій (0-100)
+    lastMemoryUpdate: string;    // коли останній раз оновлювався profile
+  };
+  learningStatus: 'active' | 'insufficient_data' | 'paused';
 }
 
 export interface AutomationScript {
@@ -117,4 +131,78 @@ export interface AuditLog {
   message: string;
   actor: 'User' | 'AI Agent' | 'System' | 'Script';
   category: 'action' | 'automation' | 'sync' | 'system';
+}
+
+export interface AgentChatMessage {
+  id: string;
+  role: 'user' | 'agent';
+  content: string;
+  timestamp: string;
+  clientId?: string;   // якого клієнта стосується
+  isLoading?: boolean;
+}
+
+export interface AdAsset {
+  id: string;
+  clientId: string;
+  campaignId: string;
+  adGroupName: string;
+  type: 'headline' | 'description' | 'sitelink' | 'callout' | 'structured_snippet' | 'call' | 'image' | 'promotion' | 'price' | 'lead_form';
+  text: string;
+  performanceLabel: 'BEST' | 'GOOD' | 'LOW' | 'UNRATED' | 'LEARNING';
+  impressions: number;
+  clicks: number;
+  pinned: 1 | 2 | 3 | null;
+  aiScore: number; // 0-100
+  aiSuggestion: string | null; // підказка якщо LOW або UNRATED
+  status: 'active' | 'paused' | 'removed';
+}
+
+export interface AdGroup {
+  id: string;
+  clientId: string;
+  campaignId: string;
+  name: string;
+  status: 'active' | 'paused' | 'removed';
+  keywords: string[];
+  negativeKeywords: string[];
+  assets: AdAsset[];
+  healthScore: number;
+}
+
+export interface CampaignDraft {
+  id: string;
+  clientId: string;
+  name: string;
+  type: 'search' | 'pmax' | 'display' | 'shopping' | 'video' | 'app' | 'demand_gen';
+  dailyBudget: number;
+  targetCpa: number | null;
+  biddingStrategy: 'TARGET_CPA' | 'TARGET_ROAS' | 'MAXIMIZE_CONVERSIONS' | 'MANUAL_CPC';
+  geoTargets: string[];
+  adGroups: {
+    name: string;
+    keywords: string[];
+    negatives: string[];
+    headlines: string[];
+    descriptions: string[];
+  }[];
+  status: 'draft' | 'ready' | 'exported';
+  createdAt: string;
+  notes: string;
+}
+
+export interface StagedChange {
+  id: string;
+  clientId: string;
+  clientName: string;
+  type: 'pause_asset' | 'create_asset' | 'pause_keyword' |
+        'add_negatives' | 'update_budget' | 'change_bid_strategy' |
+        'pause_campaign' | 'create_campaign' | 'update_ad_schedule';
+  description: string;        // людський опис: "Призупинити заголовок 'Косметика'"
+  payload: Record<string, any>;
+  source: 'manual' | 'agent_decision';
+  decisionId?: string;        // якщо прийшло з черги рішень агента
+  stagedAt: string;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  errorMessage?: string;
 }

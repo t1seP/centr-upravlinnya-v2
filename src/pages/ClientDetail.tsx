@@ -38,7 +38,9 @@ import {
   AlertTriangle,
   FolderLock
 } from 'lucide-react';
-import { Client, Campaign, Decision, AIAgent, AuditLog, SearchTermItem } from '../types';
+import { Client, Campaign, Decision, AIAgent, AuditLog, SearchTermItem, StagedChange } from '../types';
+import AdAssets from './AdAssets';
+import { INITIAL_AD_ASSETS, INITIAL_AD_GROUPS } from '../mockData';
 
 interface ClientDetailProps {
   clients: Client[];
@@ -51,6 +53,8 @@ interface ClientDetailProps {
   onAddDecisionLog: (msg: string, level: 'info' | 'success' | 'warning' | 'critical') => void;
   currentTheme: 'light' | 'dark';
   setCurrentTab: (tab: string) => void;
+  onStageChange: (change: any) => void;
+  stagedChanges: StagedChange[];
 }
 
 export default function ClientDetail({
@@ -63,7 +67,9 @@ export default function ClientDetail({
   onSelectClientId,
   onAddDecisionLog,
   currentTheme,
-  setCurrentTab
+  setCurrentTab,
+  onStageChange,
+  stagedChanges
 }: ClientDetailProps) {
   
   // Pick active client
@@ -102,6 +108,27 @@ export default function ClientDetail({
 
   // Local Campaign State
   const [localCampaigns, setLocalCampaigns] = useState<Campaign[]>(campaigns);
+
+  // Local AdAssets and AdGroups state inside ClientDetail from mockData
+  const [adAssets, setAdAssets] = useState<any[]>(INITIAL_AD_ASSETS);
+  const [adGroups, setAdGroups] = useState<any[]>(INITIAL_AD_GROUPS);
+
+  const handleAddAssets = (newAssets: any[]) => {
+    const created = newAssets.map((asset: any) => ({
+      ...asset,
+      id: `asset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    }));
+    setAdAssets(prev => [...prev, ...created]);
+    onAddDecisionLog(`Активи реклами (RSA): Додано ${newAssets.length} нових рекламних активів для акаунту ${activeClient.name}`, 'success');
+  };
+
+  const handleUpdateAsset = (id: string, update: Partial<any>) => {
+    setAdAssets(prev => prev.map(a => a.id === id ? { ...a, ...update } : a));
+    const asset = adAssets.find(a => a.id === id);
+    if (asset) {
+      onAddDecisionLog(`Активи реклами (RSA): Оновлено статус "status" для "${asset.text}" на "${update.status}"`, 'info');
+    }
+  };
 
   // Local Search Terms State (Screenshot 1 & 5)
   const [searchTerms, setSearchTerms] = useState<SearchTermItem[]>([
@@ -292,7 +319,29 @@ export default function ClientDetail({
   const [industryText, setIndustryText] = useState<string>(activeClient.industry);
   const [autoPilot, setAutoPilot] = useState<boolean>(activeClient.healthScore > 85);
   const [pacing, setPacing] = useState<string>("Standard");
+  const [optimizationPriority, setOptimizationPriority] = useState<string>("conversions");
+  const [agentNotesText, setAgentNotesText] = useState<string>("");
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
+  // Sync settings when client changes
+  React.useEffect(() => {
+    setTargetCpa(activeClient.id === 'c2' ? 620 : activeClient.id === 'c3' ? 410 : 145);
+    setTargetCtr(activeClient.id === 'c2' ? 1.8 : activeClient.id === 'c3' ? 4.1 : 3.4);
+    setBudgetLimInput(activeClient.budgetLimit);
+    setIndustryText(activeClient.industry);
+    setAutoPilot(activeClient.healthScore > 85);
+    setPacing(activeClient.id === 'c2' ? 'Accelerated' : activeClient.id === 'c3' ? 'Conservative' : 'Standard');
+    setOptimizationPriority(activeClient.id === 'c2' ? 'cpa' : activeClient.id === 'c3' ? 'impressions' : 'conversions');
+    setAgentNotesText(
+      activeClient.id === 'c1' 
+        ? 'Пріоритет на дорогі брендові кліки, ігноруючи низький CTR.' 
+        : activeClient.id === 'c2' 
+        ? 'Слідкувати за бюджетом в реальному часі, вчасно гасити кампанію по вихідних.' 
+        : activeClient.id === 'c3'
+        ? 'Особливу увагу на B2B ключі. Економний розхід бюджету.'
+        : 'Утримувати tCPA в межах встановлених норм та не виходити за рамки ліміту.'
+    );
+  }, [activeClient.id]);
 
   // Client Custom notes scratchpad
   const [clientNotes, setClientNotes] = useState<Record<string, string>>({
@@ -335,7 +384,10 @@ export default function ClientDetail({
     e.preventDefault();
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
-    onAddDecisionLog(`Каб. ${activeClient.name}: Збережено нові налаштування: Target CPA - ${targetCpa} UAH, Ліміт бюджету - ${budgetLimInput} UAH, tCTR - ${targetCtr}%`, 'success');
+    onAddDecisionLog(
+      `Каб. ${activeClient.name}: Збережено нові налаштування: Target CPA - ${targetCpa} UAH, Ліміт бюджету - ${budgetLimInput} UAH, tCTR - ${targetCtr}%, Пріоритет - ${optimizationPriority}, Інструкції для агента: "${agentNotesText}"`, 
+      'success'
+    );
   };
 
   // Add tasks
@@ -533,6 +585,12 @@ export default function ClientDetail({
               Редагування цілей та обмежень акаунту
             </h3>
 
+            <div className="p-3 mb-5 bg-indigo-505/[0.04] border border-indigo-500/10 rounded">
+              <p className="text-xs text-indigo-400 leading-relaxed font-sans">
+                Налаштуйте стратегії та персональні правила для AI-агента, який автоматично оптимізує цей обліковий запис у Google Ads.
+              </p>
+            </div>
+
             {saveSuccess && (
               <div className="p-3 mb-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded font-semibold font-mono flex items-center gap-2">
                 <CheckCircle size={14} /> Налаштування успішно збережено в Google Ads API!
@@ -609,6 +667,88 @@ export default function ClientDetail({
                   />
                 </div>
 
+              </div>
+
+              {/* Optimization Priority Radio Group */}
+              <div className="p-4 rounded border dark:border-slate-800 bg-slate-100/10 dark:bg-slate-950 space-y-3">
+                <label className="block text-[10px] uppercase font-mono tracking-wider text-slate-400 font-bold">
+                  Пріоритет Оптимізації (Optimization Priority)
+                </label>
+                <div className="space-y-2.5">
+                  <label className="flex items-start gap-2.5 cursor-pointer group">
+                    <input 
+                      type="radio"
+                      name="optimizationPriority"
+                      value="conversions"
+                      checked={optimizationPriority === 'conversions'}
+                      onChange={() => setOptimizationPriority('conversions')}
+                      className="mt-0.5 text-indigo-650 focus:ring-0 cursor-pointer"
+                    />
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-400 transition-colors">
+                        Максимальна кількість конверсій (Max ROI)
+                      </p>
+                      <p className="text-[10px] text-slate-450 leading-normal">
+                        Агент буде сфокусований на отриманні найбільшої кількості лідів у рамках щомісячного ліміту бюджету.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 cursor-pointer group">
+                    <input 
+                      type="radio"
+                      name="optimizationPriority"
+                      value="cpa"
+                      checked={optimizationPriority === 'cpa'}
+                      onChange={() => setOptimizationPriority('cpa')}
+                      className="mt-0.5 text-indigo-650 focus:ring-0 cursor-pointer"
+                    />
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-400 transition-colors">
+                        Цільова вартість за дію (Target CPA control)
+                      </p>
+                      <p className="text-[10px] text-slate-455 leading-normal">
+                        Агент контролюватиме та відсікатиме дорогі ключові слова, щоб втримати плановий CPA нижче ліміту.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 cursor-pointer group">
+                    <input 
+                      type="radio"
+                      name="optimizationPriority"
+                      value="impressions"
+                      checked={optimizationPriority === 'impressions'}
+                      onChange={() => setOptimizationPriority('impressions')}
+                      className="mt-0.5 text-indigo-650 focus:ring-0 cursor-pointer"
+                    />
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-400 transition-colors">
+                        Оптимальна відсоткова частка показів (Visibility share)
+                      </p>
+                      <p className="text-[10px] text-slate-455 leading-normal">
+                        Агент фокусуватиметься на виграші аукціонів та перших позиціях у пошуку для найкращого охоплення бренду.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Agent Notes Textarea */}
+              <div className="space-y-1">
+                <label className="block text-[10px] uppercase font-mono tracking-wider text-slate-400 font-bold">
+                  Нотатки для AI-агента (Agent Notes)
+                </label>
+                <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
+                  Будь-які спеціальні застереження, обмеження брендбуку чи вказівки щодо тональності комунікації, які агент врахує при генерації рішень.
+                </p>
+                <textarea
+                  value={agentNotesText}
+                  onChange={(e) => setAgentNotesText(e.target.value)}
+                  placeholder="Вкажіть кастомні інструкції (наприклад, утримувати CPA суворо у межах 150 грн)..."
+                  rows={4}
+                  className="w-full p-2.5 bg-slate-100/50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded outline-none focus:border-indigo-505 text-xs leading-relaxed font-sans placeholder-slate-500"
+                />
               </div>
 
               <div className="pt-2">
@@ -1022,35 +1162,19 @@ export default function ClientDetail({
 
         {/* ТАВ 7: ОГОЛОШЕННЯ І АКТИВИ (ADS & HEADLINES) */}
         {activeTab === "Оголошення і активи" && (
-          <div className="space-y-4">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400 font-display">
-              Обіг та якість адаптивних RSA оголошень
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { title: `Адаптивне пошукове оголошення [${activeClient.name}_RSA_1]`, headline: `Купити ${activeClient.name.split(' ')[0]} високої якості`, text: "Замовляйте сертифіковану продукцію напряму від постачальника з швидкою доставкою.", strength: "Прекрасна (Excellent Quality)", ctr: "6.82%", conv: "144 результатів" },
-                { title: `Адаптивне пошукове оголошення [${activeClient.name}_RSA_2]`, headline: `${activeClient.name} вигідна ціна роздріб та опт`, text: "Великий асортимент та оперативне відвантаження. Отримайте свій індивідуальний кошторис сьогодні.", strength: "Оптимальна (Good Quality)", ctr: "4.90%", conv: "82 результатів" }
-              ].map((ad, index) => (
-                <div key={index} className={`p-4 rounded-lg border text-xs space-y-2.5 ${
-                  currentTheme === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
-                }`}>
-                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-1.5">
-                    <span className="font-mono text-[10px] text-indigo-500 font-bold">{ad.title}</span>
-                    <span className="text-[10px] text-emerald-500 font-bold">{ad.strength}</span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-slate-400 uppercase font-mono block">Прев\'ю заголовка</span>
-                    <p className="font-bold text-slate-850 dark:text-indigo-400 text-[13px]">{ad.headline}</p>
-                    <span className="text-[9px] text-slate-400 uppercase font-mono block mt-1.5">Опис оголошення</span>
-                    <p className="text-slate-600 dark:text-slate-350">{ad.text}</p>
-                  </div>
-                  <div className="flex justify-between font-mono text-[10px] pt-1 text-slate-400">
-                    <span>CTR: {ad.ctr}</span>
-                    <span>Конверсії: {ad.conv}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="space-y-4 animate-fade-in">
+            <AdAssets
+              clients={clients}
+              campaigns={campaigns}
+              adAssets={adAssets}
+              adGroups={adGroups}
+              currentTheme={currentTheme}
+              onAddAssets={handleAddAssets}
+              onUpdateAsset={handleUpdateAsset}
+              initialClientId={activeClient.id}
+              onStageChange={onStageChange}
+              stagedChanges={stagedChanges}
+            />
           </div>
         )}
 

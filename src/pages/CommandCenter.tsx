@@ -23,8 +23,8 @@ interface CommandCenterProps {
   decisions: Decision[];
   agents: AIAgent[];
   scripts: AutomationScript[];
-  onApproveDecision: (id: string) => void;
-  onRejectDecision: (id: string) => void;
+  onStageDecision: (decision: Decision) => void;
+  onRejectDecision: (id: string, note?: string) => void;
   onPostponeDecision: (id: string) => void;
   onSelectClient: (id: string) => void;
   spendHistory: Array<{ date: string; spend: number; target: number; conversions: number }>;
@@ -37,7 +37,7 @@ export default function CommandCenter({
   decisions,
   agents,
   scripts,
-  onApproveDecision,
+  onStageDecision,
   onRejectDecision,
   onPostponeDecision,
   onSelectClient,
@@ -47,6 +47,10 @@ export default function CommandCenter({
 }: CommandCenterProps) {
   const [selectedDetails, setSelectedDetails] = useState<Decision | null>(null);
 
+  // Rejection note states
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState('');
+
   // Filter decisions based on query
   const filteredDecisions = decisions.filter(d => 
     d.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -55,8 +59,8 @@ export default function CommandCenter({
   );
 
   // Stats calculation
-  const pendingCount = decisions.filter(d => d.status === 'pending').length;
-  const highPriorityCount = decisions.filter(d => d.priority === 'high' && d.status === 'pending').length;
+  const pendingCount = decisions.filter(d => d.status === 'pending' || d.status === 'staged').length;
+  const highPriorityCount = decisions.filter(d => d.priority === 'high' && (d.status === 'pending' || d.status === 'staged')).length;
   const criticalBalancesCount = clients.filter(c => c.status === 'warning' || c.riskLevel === 'high').length;
   
   // Custom script quick status indicator mapping
@@ -160,9 +164,9 @@ export default function CommandCenter({
             </div>
 
             {/* Decisions List */}
-            {filteredDecisions.filter(d => d.status === 'pending').length > 0 ? (
+            {filteredDecisions.filter(d => d.status === 'pending' || d.status === 'staged').length > 0 ? (
               <div className="space-y-3">
-                {filteredDecisions.filter(d => d.status === 'pending').map((decision) => (
+                {filteredDecisions.filter(d => d.status === 'pending' || d.status === 'staged').map((decision) => (
                   <div 
                     key={decision.id}
                     id={`decision-card-${decision.id}`}
@@ -173,16 +177,18 @@ export default function CommandCenter({
                         ? 'border-l-4 border-l-amber-500 ' 
                         : 'border-l-4 border-l-slate-400 '
                     } ${
-                      currentTheme === 'light' 
+                      decision.status === 'staged'
+                        ? (currentTheme === 'light' ? 'bg-slate-100/50 border-slate-200 opacity-75' : 'bg-slate-900/40 border-slate-850 opacity-75')
+                        : currentTheme === 'light' 
                         ? 'bg-slate-50 hover:bg-slate-100 border-slate-205' 
                         : 'bg-slate-850 hover:bg-slate-800 border-slate-800'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
+                      <div className="space-y-1 pb-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-xs text-indigo-650 dark:text-indigo-400">
-                            {decision.clientName}
+                             {decision.clientName}
                           </span>
                           <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold uppercase ${
                             decision.priority === 'high' 
@@ -196,6 +202,11 @@ export default function CommandCenter({
                           <span className="text-[10px] text-slate-400 font-mono">
                             Джерело: <span className="font-medium text-slate-350">{decision.sourceName}</span>
                           </span>
+                          {decision.status === 'staged' && (
+                            <span className="text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 rounded font-bold uppercase tracking-wider font-mono">
+                              В черзі вигрузки
+                            </span>
+                          )}
                         </div>
                         <h4 className="text-xs font-bold text-slate-900 dark:text-white mt-1">
                           {decision.title}
@@ -203,6 +214,21 @@ export default function CommandCenter({
                         <p className="text-xs text-slate-400 leading-relaxed max-w-2xl mt-0.5">
                           {decision.desc}
                         </p>
+
+                        {decision.feedbackStats && (decision.feedbackStats.timesApproved > 0 || decision.feedbackStats.timesRejected > 0) && (
+                          <div className="mt-2.5 flex flex-wrap items-center gap-2 p-1.5 px-2.5 rounded bg-indigo-550/[0.04] border border-indigo-500/10 text-[10px] font-mono text-slate-400">
+                            <span className="text-indigo-400 font-bold uppercase tracking-wider text-[9px]">🧠 Memory recall:</span>
+                            {decision.feedbackStats.timesApproved > 0 && (
+                              <span className="text-emerald-500 font-bold">✓ Approved {decision.feedbackStats.timesApproved}x</span>
+                            )}
+                            {decision.feedbackStats.timesRejected > 0 && (
+                              <span className="text-rose-500 font-bold">✕ Rejected {decision.feedbackStats.timesRejected}x</span>
+                            )}
+                            {decision.feedbackStats.lastRejectedAt && (
+                              <span className="text-slate-500">(Останнє відхилення: {decision.feedbackStats.lastRejectedAt})</span>
+                            )}
+                          </div>
+                        )}
 
                         {/* List negatives if type matches */}
                         {decision.actionType === 'add_negatives' && decision.payload.negatives && (
@@ -237,19 +263,30 @@ export default function CommandCenter({
                           Переглянути
                         </button>
                         <button
-                          onClick={() => onApproveDecision(decision.id)}
-                          className="p-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold flex items-center justify-center gap-1 w-full"
-                          title="Підтвердити"
+                          onClick={() => {
+                            if (decision.status !== 'staged') {
+                              onStageDecision(decision);
+                            }
+                          }}
+                          disabled={decision.status === 'staged'}
+                          className={`p-1 px-2.5 rounded text-xs font-semibold flex items-center justify-center gap-1 w-full transition-all outline-none ${
+                            decision.status === 'staged'
+                              ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          }`}
+                          title={decision.status === 'staged' ? 'Вже в черзі вигрузки' : 'Поставити в чергу'}
                         >
-                          <Check size={12} /> <span className="text-[10px]">Діяти</span>
+                          <Check size={12} /> <span className="text-[10px] whitespace-nowrap">{decision.status === 'staged' ? 'В черзі ✓' : 'В чергу'}</span>
                         </button>
-                        <button
-                          onClick={() => onPostponeDecision(decision.id)}
-                          className="p-1 text-slate-400 hover:text-slate-100 hover:bg-slate-700 rounded text-xs flex items-center justify-center w-full"
-                          title="Відкласти"
-                        >
-                          <Clock size={12} />
-                        </button>
+                        {decision.status !== 'staged' && (
+                          <button
+                            onClick={() => onPostponeDecision(decision.id)}
+                            className="p-1 text-slate-400 hover:text-slate-100 hover:bg-slate-700 rounded text-xs flex items-center justify-center w-full"
+                            title="Відкласти"
+                          >
+                            <Clock size={12} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -627,10 +664,10 @@ export default function CommandCenter({
                 </div>
               )}
 
-              {selectedDetails.actionType === 'refill_balance' && (
+              {selectedDetails.actionType === 'refill_balance' && selectedDetails.payload.amountNeeded && (
                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded">
                   <p className="text-xs text-emerald-500 font-bold">
-                    Буде розраховано авто-платіж на суму {selectedDetails.payload.amountNeeded?.toLocaleString()} UAH.
+                    Буде розраховано авто-платіж на суму {selectedDetails.payload.amountNeeded.toLocaleString()} UAH.
                   </p>
                   <p className="text-[10px] text-slate-400 mt-1">
                     Спланована тривалість: ~5.3 діб при поточному burn-rate.
@@ -652,22 +689,80 @@ export default function CommandCenter({
 
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => { onRejectDecision(selectedDetails.id); setSelectedDetails(null); }}
+                onClick={() => {
+                  setRejectingId(selectedDetails.id);
+                  setRejectNote('');
+                }}
                 className="px-4 py-1.5 rounded text-xs hover:bg-rose-500/10 border border-transparent text-rose-500 font-mono"
               >
                 Відхилити
               </button>
+              {selectedDetails.status !== 'staged' && (
+                <button
+                  onClick={() => { onPostponeDecision(selectedDetails.id); setSelectedDetails(null); }}
+                  className="px-4 py-1.5 rounded text-xs hover:bg-slate-800 border border-slate-700 text-slate-400 font-mono"
+                >
+                  Відкласти на 24г
+                </button>
+              )}
               <button
-                onClick={() => { onPostponeDecision(selectedDetails.id); setSelectedDetails(null); }}
-                className="px-4 py-1.5 rounded text-xs hover:bg-slate-800 border border-slate-700 text-slate-400 font-mono"
+                onClick={() => {
+                  if (selectedDetails.status !== 'staged') {
+                    onStageDecision(selectedDetails);
+                    setSelectedDetails(null);
+                  }
+                }}
+                disabled={selectedDetails.status === 'staged'}
+                className={`px-5 py-1.5 rounded text-xs font-bold transition-all ${
+                  selectedDetails.status === 'staged'
+                    ? 'bg-slate-300 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                    : 'bg-indigo-650 hover:bg-indigo-700 text-white'
+                }`}
               >
-                Відкласти на 24г
+                {selectedDetails.status === 'staged' ? 'В черзі вигрузки ✓' : 'Додати в чергу'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REJECTION NOTE MODAL */}
+      {rejectingId && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className={`p-5 rounded-lg border max-w-sm w-full space-y-4 ${
+            currentTheme === 'light' ? 'bg-white border-slate-250 text-slate-800' : 'bg-slate-905 border-slate-800 text-white'
+          } animate-scale-up`}>
+            <div>
+              <h4 className="font-bold text-xs font-mono uppercase text-indigo-400 mb-1">Причина відхилення рекомендації</h4>
+              <p className="text-[10px] text-slate-455">Вкажіть причину для навчання алгоритму:</p>
+            </div>
+            <textarea
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              placeholder="Наприклад: неактуальне ключове слово, завеликий CPA..."
+              rows={3}
+              className="w-full p-2.5 bg-slate-100/10 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded outline-none text-xs text-white placeholder-slate-500 font-mono"
+            />
+            <div className="flex justify-end gap-2 text-xs font-mono">
+              <button
+                onClick={() => {
+                  setRejectingId(null);
+                  setRejectNote('');
+                }}
+                className="px-3 py-1.5 hover:bg-slate-800 rounded border border-slate-755 text-slate-400"
+              >
+                Скасувати
               </button>
               <button
-                onClick={() => { onApproveDecision(selectedDetails.id); setSelectedDetails(null); }}
-                className="px-5 py-1.5 rounded text-xs bg-indigo-650 hover:bg-indigo-700 text-white font-bold"
+                onClick={() => {
+                  onRejectDecision(rejectingId, rejectNote.trim() || undefined);
+                  setRejectingId(null);
+                  setRejectNote('');
+                  setSelectedDetails(null);
+                }}
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-750 text-white font-bold rounded"
               >
-                Впровадити зараз
+                Відхилити
               </button>
             </div>
           </div>

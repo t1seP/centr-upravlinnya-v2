@@ -11,7 +11,10 @@ import {
   History, 
   FileCheck,
   Activity,
-  Play
+  Play,
+  MessageSquare,
+  Sparkles,
+  Image
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,6 +26,9 @@ interface SidebarProps {
   pendingDecisionsCount: number;
   currentTheme: 'light' | 'dark';
   setCurrentTheme: (theme: 'light' | 'dark') => void;
+  onToggleChatWidget: () => void;
+  pendingStagedChangesCount: number;
+  onOpenUploadModal: () => void;
 }
 
 export default function Sidebar({
@@ -33,13 +39,19 @@ export default function Sidebar({
   criticalAlertsCount,
   pendingDecisionsCount,
   currentTheme,
-  setCurrentTheme
+  setCurrentTheme,
+  onToggleChatWidget,
+  pendingStagedChangesCount,
+  onOpenUploadModal
 }: SidebarProps) {
   
   const menuItems = [
     { id: 'command-center', label: 'Командний центр', icon: LayoutDashboard, badge: pendingDecisionsCount },
     { id: 'clients', label: 'Стан клієнтів', icon: Users, badge: null },
     { id: 'client-detail', label: 'Картка клієнта', icon: UserSquare2, badge: null, subtext: 'Вибрано клієнта' },
+    { id: 'agent-chat', label: 'Чат з Агентом', icon: MessageSquare, badge: 'LIVE' },
+    { id: 'campaign-builder', label: 'Кампанії з Агентом', icon: Sparkles, badge: 'AI' },
+    { id: 'ad-assets', label: 'Активи реклами', icon: Image, badge: 'New' },
     { id: 'balances', label: 'Контроль балансів', icon: Wallet, badge: criticalAlertsCount ? '🚨 Run-out' : null },
     { id: 'semantics', label: 'Пошукові терміни', icon: BookOpen, badge: '98%' },
     { id: 'recommendations', label: 'Рекомендації AI', icon: Cpu, badge: 'Smart' },
@@ -86,7 +98,13 @@ export default function Sidebar({
               <button
                 key={item.id}
                 id={`sidebar-link-${item.id}`}
-                onClick={() => setCurrentTab(item.id)}
+                onClick={() => {
+                  if (item.id === 'agent-chat') {
+                    onToggleChatWidget();
+                  } else {
+                    setCurrentTab(item.id);
+                  }
+                }}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-xs font-medium transition-all duration-150 ${
                   isActive 
                     ? 'bg-indigo-600 text-white shadow-sm font-bold' 
@@ -117,6 +135,26 @@ export default function Sidebar({
           })}
         </nav>
       </div>
+
+      {pendingStagedChangesCount > 0 && (
+        <div className={`p-4 border-t ${
+          currentTheme === 'light' ? 'border-indigo-100 bg-indigo-50/40' : 'border-indigo-950/20 bg-indigo-950/10'
+        }`}>
+          <button
+            onClick={onOpenUploadModal}
+            className="w-full flex items-center justify-between p-2 px-3 rounded bg-indigo-600 hover:bg-indigo-755 text-white text-xs font-bold font-mono transition-all duration-200 cursor-pointer shadow-indigo-500/20 shadow-md"
+            title="Переглянути та вигрузити зміни"
+          >
+            <div className="flex items-center gap-1.5 animate-pulse">
+              <span>📤</span>
+              <span className="tracking-tight">Змін в черзі:</span>
+            </div>
+            <span className="bg-white text-indigo-750 px-2 py-0.2 rounded-md font-bold font-sans text-[11px] tracking-wide">
+              {pendingStagedChangesCount}
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Theme Presets View and Quick Action */}
       <div className={`p-4 border-t ${
