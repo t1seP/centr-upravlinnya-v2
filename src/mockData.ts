@@ -1,0 +1,597 @@
+import { Client, Campaign, Decision, AIAgent, AutomationScript, BalanceRecord, SearchTermItem, Document, AuditLog } from './types';
+
+export const INITIAL_CLIENTS: Client[] = [
+  {
+    id: 'c1',
+    name: 'Бета Косметика',
+    accountId: '840-391-2094',
+    healthScore: 82,
+    budgetLimit: 45000,
+    budgetSpent: 38200,
+    ctr: 3.42,
+    cpc: 8.50,
+    cpa: 145.00,
+    conversions: 263,
+    riskLevel: 'medium',
+    lastAction: 'Додано мінус-слова за рекомендацією AI',
+    nextStep: 'Верифікація пошукових запитів в уїкенд-кампаніях',
+    currency: 'UAH',
+    status: 'warning',
+    industry: 'E-commerce, Краса & Догляд'
+  },
+  {
+    id: 'c2',
+    name: 'Дельта Авто',
+    accountId: '517-900-2411',
+    healthScore: 45,
+    budgetLimit: 120000,
+    budgetSpent: 118400,
+    ctr: 1.84,
+    cpc: 24.50,
+    cpa: 620.00,
+    conversions: 191,
+    riskLevel: 'high',
+    lastAction: 'Автоматичне попередження про вичерпання балансу',
+    nextStep: 'Поповнити баланс аккаунта Google Ads',
+    currency: 'UAH',
+    status: 'warning',
+    industry: 'Автосервіс, Запчастини'
+  },
+  {
+    id: 'c3',
+    name: 'Альфа Метал',
+    accountId: '392-411-9034',
+    healthScore: 94,
+    budgetLimit: 85000,
+    budgetSpent: 42100,
+    ctr: 4.12,
+    cpc: 18.20,
+    cpa: 410.00,
+    conversions: 102,
+    riskLevel: 'low',
+    lastAction: 'Адаптація биндингу для пошуку B2B',
+    nextStep: 'Контроль за новими категоріями металопрокату',
+    currency: 'UAH',
+    status: 'active',
+    industry: 'B2B Виробництво, Важка промисловість'
+  },
+  {
+    id: 'c4',
+    name: 'Гамма Хелс',
+    accountId: '211-505-8843',
+    healthScore: 89,
+    budgetLimit: 60000,
+    budgetSpent: 51200,
+    ctr: 2.95,
+    cpc: 12.80,
+    cpa: 220.00,
+    conversions: 232,
+    riskLevel: 'low',
+    lastAction: 'Заміна офферу на банерах в КМС',
+    nextStep: 'Аналіз результативності за гео-модифікаторами',
+    currency: 'UAH',
+    status: 'active',
+    industry: 'Медичні послуги, Клініки'
+  }
+];
+
+export const INITIAL_CAMPAIGNS: Campaign[] = [
+  // Client 1
+  {
+    id: 'g1_1',
+    clientId: 'c1',
+    name: 'Beta_UA_Search_Brand_Ecomm',
+    budget: 800,
+    spent: 720,
+    status: 'active',
+    impressions: 12500,
+    clicks: 850,
+    ctr: 6.8,
+    cpc: 4.20,
+    conversions: 92,
+    cpa: 7.82,
+  },
+  {
+    id: 'g1_2',
+    clientId: 'c1',
+    name: 'Beta_UA_PerformanceMax_AllProducts',
+    budget: 2500,
+    spent: 2480,
+    status: 'active',
+    impressions: 89000,
+    clicks: 1420,
+    ctr: 1.6,
+    cpc: 10.50,
+    conversions: 140,
+    cpa: 17.71,
+  },
+  {
+    id: 'g1_3',
+    clientId: 'c1',
+    name: 'Beta_UA_Search_Cosmetics_Category_Generic',
+    budget: 1200,
+    spent: 980,
+    status: 'active',
+    impressions: 24500,
+    clicks: 490,
+    ctr: 2.0,
+    cpc: 15.30,
+    conversions: 31,
+    cpa: 31.61,
+  },
+  // Client 2
+  {
+    id: 'g2_1',
+    clientId: 'c2',
+    name: 'Delta_UA_Search_Parts_B2C',
+    budget: 5000,
+    spent: 4950,
+    status: 'active',
+    impressions: 45000,
+    clicks: 1800,
+    ctr: 4.0,
+    cpc: 22.10,
+    conversions: 110,
+    cpa: 45.00,
+  },
+  {
+    id: 'g2_2',
+    clientId: 'c2',
+    name: 'Delta_UA_PerformanceMax_Remont_Dvyhuna',
+    budget: 3500,
+    spent: 3410,
+    status: 'active',
+    impressions: 127000,
+    clicks: 2210,
+    ctr: 1.74,
+    cpc: 25.50,
+    conversions: 81,
+    cpa: 42.10,
+  },
+  {
+    id: 'g2_3',
+    clientId: 'c2',
+    name: 'Delta_UA_Display_Remarketing',
+    budget: 1500,
+    spent: 1490,
+    status: 'paused',
+    impressions: 340000,
+    clicks: 1020,
+    ctr: 0.3,
+    cpc: 4.80,
+    conversions: 0,
+    cpa: 0,
+  },
+  // Client 3
+  {
+    id: 'g3_1',
+    clientId: 'c3',
+    name: 'Alpha_UA_Search_B2B_Prokat_Metal_Kyiv',
+    budget: 3000,
+    spent: 1250,
+    status: 'active',
+    impressions: 11200,
+    clicks: 480,
+    ctr: 4.28,
+    cpc: 16.50,
+    conversions: 62,
+    cpa: 20.16,
+  },
+  {
+    id: 'g3_2',
+    clientId: 'c3',
+    name: 'Alpha_UA_Search_B2B_Truby_Shveler',
+    budget: 2000,
+    spent: 1820,
+    status: 'active',
+    impressions: 9800,
+    clicks: 390,
+    ctr: 3.97,
+    cpc: 21.00,
+    conversions: 40,
+    cpa: 45.50,
+  },
+  // Client 4
+  {
+    id: 'g4_1',
+    clientId: 'c4',
+    name: 'Gamma_UA_Search_All_Services_Brand',
+    budget: 1500,
+    spent: 1440,
+    status: 'active',
+    impressions: 4800,
+    clicks: 720,
+    ctr: 15.0,
+    cpc: 5.20,
+    conversions: 180,
+    cpa: 8.00,
+  }
+];
+
+export const INITIAL_DECISIONS: Decision[] = [
+  {
+    id: 'dec-1',
+    clientId: 'c1',
+    clientName: 'Бета Косметика',
+    priority: 'high',
+    title: 'Додати 14 мінус-слів в брендову кампанію',
+    desc: 'Агент знайшов сміттєві запити на кшталт "безкоштовно скачати рецепт косметики", які зливали бюджет за останні 7 днів.',
+    actionType: 'add_negatives',
+    source: 'agent',
+    sourceName: 'Search Terms Agent',
+    status: 'pending',
+    payload: {
+      negatives: ['безкоштовно', 'рецепт', 'завантажити', 'книга', 'своїми руками', 'ютуб', 'вебінар', 'курси', 'історія', 'виробництво', 'хімія', 'як зробити', 'англійською', 'вакансії']
+    },
+    createdAt: '2026-05-31T12:30:11Z'
+  },
+  {
+    id: 'dec-2',
+    clientId: 'c2',
+    clientName: 'Дельта Авто',
+    priority: 'high',
+    title: 'Критичне поповнення гаманця (Залишилось < 0.5 днів)',
+    desc: 'Поточний добовий спад становить 4,500 UAH, баланс складає 1,600 UAH. Кампанії зупиняться приблизно о 23:00.',
+    actionType: 'refill_balance',
+    source: 'script',
+    sourceName: 'balances.py',
+    status: 'pending',
+    payload: {
+      amountNeeded: 25000,
+      details: 'Рекомендоване поповнення на 5 днів життєдіяльності аккаунту: 25,000 UAH.'
+    },
+    createdAt: '2026-05-31T15:45:00Z'
+  },
+  {
+    id: 'dec-3',
+    clientId: 'c3',
+    clientName: 'Альфа Метал',
+    priority: 'medium',
+    title: 'Падіння конверсій на 35% в B2B прокатній групі',
+    desc: 'Google Ads API сповістив про падіння тижневих конверсій, хоча бюджет витрачається стабільно. Потрібна перевірка лід-форм на сайті.',
+    actionType: 'check_drop',
+    source: 'ads_api',
+    sourceName: 'Google Ads Live Tracer',
+    status: 'pending',
+    payload: {
+      details: 'Рекомендуємо перевірити чи працює кнопка відправки на лендингу https://alpha-metal.com.ua/order та суміжні редіректи.'
+    },
+    createdAt: '2026-05-31T09:10:22Z'
+  },
+  {
+    id: 'dec-4',
+    clientId: 'c1',
+    clientName: 'Бета Косметика',
+    priority: 'medium',
+    title: 'Зупинити 2 неефективні ключові слова з високим CPA',
+    desc: 'Агент виявив ключі "купити креми елітні" та "косметика львів ціна", які витратили 4,300 UAH без жодної конверсії за 14 днів.',
+    actionType: 'pause_keywords',
+    source: 'agent',
+    sourceName: 'Campaign Doctor',
+    status: 'pending',
+    payload: {
+      keywordsToPause: ['[купити креми елітні]', '"косметика львів ціна"'],
+      details: 'Заощадження: ~8,600 UAH на місяць після павзи.'
+    },
+    createdAt: '2026-05-31T11:05:00Z'
+  },
+  {
+    id: 'dec-5',
+    clientId: 'c4',
+    clientName: 'Гамма Хелс',
+    priority: 'low',
+    title: 'Оптимізувати tCPA ставки на вихідні дні',
+    desc: 'Аналітик помітив, що у суботу та неділю CPA падає на 40%. Можна агресивніше підняти ставки на 15% у планувальнику.',
+    actionType: 'optimize_bids',
+    source: 'agent',
+    sourceName: 'Metrics Analyst',
+    status: 'pending',
+    payload: {
+      details: 'Зміна модифікатора часу (+15% на СБ-НД) підвищить обсяг конверсій при стабільному рівні рентабельності.'
+    },
+    createdAt: '2026-05-30T18:00:00Z'
+  }
+];
+
+export const INITIAL_AGENTS: AIAgent[] = [
+  {
+    id: 'agent_search_terms',
+    name: 'Search Terms Agent',
+    desc: 'Сканує пошукові запити у реальному часі, виявляє нецільовий трафік, формує списки мінус-слів за допомогою LLM аналізу контексту.',
+    status: 'idle',
+    statsLabel: 'Знайдено нецільових',
+    statsValue: '14 слів цього тижня',
+    lastRunTime: '31.05.2026, 16:15',
+    resultSummary: 'Нещодавній аналіз виявив 14 сміттєвих фраз у клієнта "Бета Косметика", сформовано high-priority екшн.',
+    capabilities: ['Авто-класифікація намірів', 'Виявлення бренд-канібалізації', 'Обчислення маржинальних втрат']
+  },
+  {
+    id: 'agent_metrics_analyst',
+    name: 'Metrics Analyst',
+    desc: 'Агрегує денні метрики з API, порівнює з ретроспективним вектором, сповіщає про різкі падіння CTR, обвал конверсій або аномальний ріст CPC.',
+    status: 'idle',
+    statsLabel: 'Рівень аномалій',
+    statsValue: '1 виявлено (Альфа)',
+    lastRunTime: '31.05.2026, 15:30',
+    resultSummary: 'Тренди стабільні, крім тимчасового падіння відгуку по B2B формах Alpha Metal.',
+    capabilities: ['Аналіз часових рядів', 'Статистичний Z-score аномалій', 'Ковзне середнє для трендів']
+  },
+  {
+    id: 'agent_budget_watcher',
+    name: 'Budget Watcher',
+    desc: 'Контролює добове вичерпання коштів, темпи "вигорання" бюджету, залишки на білінг-акаунтах Google і надсилає алерти для запобігання зупинці.',
+    status: 'active',
+    statsLabel: 'Клієнти під загрозою',
+    statsValue: '1 критичний (Дельта)',
+    lastRunTime: '31.05.2026, 16:35',
+    resultSummary: 'Сформовано критичний алерт по Дельта Авто (залишилось менше ніж 0.5 днів роботи). Гамма і Альфа мають стабільні баланси.',
+    capabilities: ['Екстраполяція вичерпання коштів', 'Планування бюджетних залишків', 'Моніторинг лімітів оплат']
+  },
+  {
+    id: 'agent_campaign_doctor',
+    name: 'Campaign Doctor',
+    desc: 'Аналізує внутрішні фактори акаунта: налаштування таргетингу, показники якості (Quality Score), помилкові редіректи, деструктивні пересікання.',
+    status: 'idle',
+    statsLabel: 'Health Score середній',
+    statsValue: '77.5%',
+    lastRunTime: '31.05.2026, 12:00',
+    resultSummary: 'Рекомендує зупинити 2 неефективні ключові слова у Бета Косметика. Потребує підтвердження.',
+    capabilities: ['Аналіз Quality Score', 'Діагностика битих URL', 'Розрахунок перекриття аукціонів']
+  }
+];
+
+export const INITIAL_SCRIPTS: AutomationScript[] = [
+  {
+    id: 'scr-1',
+    filename: 'search_terms.py',
+    name: 'Вивантаження штормових термінів',
+    status: 'active',
+    lastRun: '31.05.2026, 16:00',
+    nextRun: '31.05.2026, 20:00',
+    resultMessage: 'Успішно імпортовано 342 нових унікальних термінів з Google Ads API.',
+    codePreview: `import os\nfrom google.ads.googleads.client import GoogleAdsClient\n\ndef fetch_search_terms():\n    client = GoogleAdsClient.load_from_storage()\n    query = """\n        SELECT search_term_view.search_term,\n               metrics.impressions, metrics.clicks, metrics.cost_micros\n        FROM search_term_view\n        WHERE segments.date DURING LAST_7_DAYS\n    """\n    # API request pipeline logic`
+  },
+  {
+    id: 'scr-2',
+    filename: 'metrics.py',
+    name: 'Парсинг денної аналітики',
+    status: 'active',
+    lastRun: '31.05.2026, 16:30',
+    nextRun: '31.05.2026, 17:30',
+    resultMessage: 'Завантажено метрики за 30.05. Розраховано CTR і СРС для всіх 4 клієнтів.',
+    codePreview: `import pandas as pd\nimport requests\n\ndef update_sheets():\n    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq"\n    raw_data = requests.get(url)\n    # Pandas calculation logic for PPC dashboard`
+  },
+  {
+    id: 'scr-3',
+    filename: 'balances.py',
+    name: 'Перевірка балансів та лімітів',
+    status: 'warning',
+    lastRun: '31.05.2026, 16:35',
+    nextRun: '31.05.2026, 16:55',
+    resultMessage: 'Клиєнт [Дельта Авто] критично близький до касового розриву! Баланс 1,600 UAH.',
+    codePreview: `import telebot\n\ndef check_billing():\n    accounts = get_all_billing_info()\n    for acc in accounts:\n        if acc['days_left'] < 1:\n            send_telegram_alert(f"[ALERT] {acc['name']} runs dry!")`
+  },
+  {
+    id: 'scr-4',
+    filename: 'diagnose_campaign.py',
+    name: 'Діагностика лід-форм і посилань',
+    status: 'idle',
+    lastRun: '31.05.2026, 08:00',
+    nextRun: '01.06.2026, 08:00',
+    resultMessage: 'Скрипт перевірив 12 активних URL-адрес. Всі повернули статус 200 OK.',
+    codePreview: `import grequests\n\ndef link_checker():\n    urls = get_active_campaign_urls()\n    rs = (grequests.get(u) for u in urls)\n    responses = grequests.map(rs)\n    # Diagnostic HTTP pipeline`
+  },
+  {
+    id: 'scr-5',
+    filename: 'fetch_audit_data.py',
+    name: 'Логування змін Google Ads SDK',
+    status: 'failed',
+    lastRun: '30.05.2026, 18:00',
+    nextRun: 'Зупинено',
+    resultMessage: 'OAuth Token Expired. Потрібно оновити токен доступу в налаштуваннях.',
+    codePreview: `def refresh_oauth():\n    # Attempt refresh\n    raise RefreshError("Expired token or invalid secrets config")`
+  }
+];
+
+export const INITIAL_BALANCES: BalanceRecord[] = [
+  {
+    id: 'b1',
+    clientId: 'c1',
+    clientName: 'Бета Косметика',
+    limit: 45000,
+    currentBalance: 6800,
+    burnRate: 1450,
+    daysLeft: 4.6,
+    alertState: 'warning'
+  },
+  {
+    id: 'b2',
+    clientId: 'c2',
+    clientName: 'Дельта Авто',
+    limit: 120000,
+    currentBalance: 1600,
+    burnRate: 4500,
+    daysLeft: 0.35,
+    alertState: 'critical'
+  },
+  {
+    id: 'b3',
+    clientId: 'c3',
+    clientName: 'Альфа Метал',
+    limit: 85000,
+    currentBalance: 42900,
+    burnRate: 2100,
+    daysLeft: 20.4,
+    alertState: 'ok'
+  },
+  {
+    id: 'b4',
+    clientId: 'c4',
+    clientName: 'Гамма Хелс',
+    limit: 60000,
+    currentBalance: 8800,
+    burnRate: 1800,
+    daysLeft: 4.8,
+    alertState: 'warning'
+  }
+];
+
+export const INITIAL_SEARCH_TERMS: SearchTermItem[] = [
+  {
+    id: 'st-1',
+    clientId: 'c1',
+    clientName: 'Бета Косметика',
+    term: 'безкоштовно скачати рецепт косметики',
+    impressions: 450,
+    clicks: 42,
+    cost: 380,
+    ctr: 9.33,
+    conversions: 0,
+    cpa: 0,
+    relevanceScore: 12,
+    status: 'review'
+  },
+  {
+    id: 'st-2',
+    clientId: 'c1',
+    term: 'крем для обличчя ютуб вебінар',
+    clientName: 'Бета Косметика',
+    impressions: 120,
+    clicks: 18,
+    cost: 154,
+    ctr: 15.0,
+    conversions: 0,
+    cpa: 0,
+    relevanceScore: 8,
+    status: 'review'
+  },
+  {
+    id: 'st-3',
+    clientId: 'c2',
+    clientName: 'Дельта Авто',
+    term: 'безкоштовна діагностика авто своїми руками',
+    impressions: 890,
+    clicks: 95,
+    cost: 2100,
+    ctr: 10.6,
+    conversions: 0,
+    cpa: 0,
+    relevanceScore: 15,
+    status: 'review'
+  },
+  {
+    id: 'st-4',
+    clientId: 'c1',
+    clientName: 'Бета Косметика',
+    term: 'купити корейські креми київ',
+    impressions: 1500,
+    clicks: 230,
+    cost: 1955,
+    ctr: 15.3,
+    conversions: 35,
+    cpa: 55.8,
+    relevanceScore: 98,
+    status: 'review'
+  },
+  {
+    id: 'st-5',
+    clientId: 'c3',
+    clientName: 'Альфа Метал',
+    term: 'металопрокат замовити прайс гост 42',
+    impressions: 340,
+    clicks: 52,
+    cost: 950,
+    ctr: 15.2,
+    conversions: 12,
+    cpa: 79.1,
+    relevanceScore: 92,
+    status: 'review'
+  }
+];
+
+export const INITIAL_DOCUMENTS: Document[] = [
+  {
+    id: 'doc-1',
+    title: 'Звіти про мінус-слова: Стандарти та Промти',
+    category: 'prompt',
+    desc: 'Затверджений системний промт для аналізу пошукових запитів та розстановки релевантності за допомогою LLM.',
+    content: `You are an expert Google Ads Specialist. Analyze the following table of search terms that triggered campaigns. Look specifically for terms with high cost-per-click and low conversions, or terms containing words representing research, educational, free, or DIY intent (e.g. "free", "pdf", "wiki", "diy", "how to"). Respond with a list of negative keywords that must be excluded, structured as a JSON array.`,
+    lastModified: '30.05.2026, 12:00'
+  },
+  {
+    id: 'doc-2',
+    title: 'Регламент критичного реагування на злив бюджету (SOP)',
+    category: 'sop',
+    desc: 'Стандартна процедура дій, коли добові витрати перевищують спланований ліміт на 30%+',
+    content: `1. Отримати сповіщення від Budget Watcher.\n2. Перевірити налаштування кампанії на наявність авто-застосування рекомендацій Google (Auto-applied recommendations).\n3. Переконатися, що у кампаніях Performance Max не підключено розширення URL-адрес без мінус-виключень.\n4. Якщо CPA зріс у 2+ рази, негайно знизити денний ліміт на 50% і передати акаунт на ручну діагностику лідогенерації.`,
+    lastModified: '25.04.2026, 09:44'
+  },
+  {
+    id: 'doc-3',
+    title: 'Python скрипт швидкої синхронізації з Google Sheets',
+    category: 'script',
+    desc: 'Код для інтеграції, який можна скопіювати напряму в Google Apps Script або запустити на локальному сервері.',
+    content: `#!/usr/bin/env python\nimport gspread\nfrom oauth2client.service_account import ServiceAccountCredentials\n\ndef upload_metrics_to_sheet(data):\n    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]\n    creds = ServiceAccountCredentials.from_json_keyfile_name("service-account.json", scope)\n    client = gspread.authorize(creds)\n    sheet = client.open("Google Ads - PPC Dashboard").sheet1\n    sheet.update([data.columns.values.tolist()] + data.values.tolist())\n    print("Data synchronized.")`,
+    lastModified: '12.05.2026, 17:15'
+  }
+];
+
+export const INITIAL_LOGS: AuditLog[] = [
+  {
+    id: 'log-1',
+    timestamp: '31.05.2026, 16:35:12',
+    level: 'critical',
+    message: 'Дельта Авто: Балансу лишилось критично мало (1600 UAH). Відправлено екстрений пуш PPC-спеціалісту.',
+    actor: 'AI Agent',
+    category: 'automation'
+  },
+  {
+    id: 'log-2',
+    timestamp: '31.05.2026, 16:15:00',
+    level: 'info',
+    message: 'Скрипт search_terms.py завершив аналіз. Знайдено 4 нових запити низької релевантності.',
+    actor: 'Script',
+    category: 'automation'
+  },
+  {
+    id: 'log-3',
+    timestamp: '31.05.2026, 15:42:19',
+    level: 'success',
+    message: 'Оновлено Google Sheet "PPC Dashboard Data" - 4 акаунти, статус ACTIVE',
+    actor: 'System',
+    category: 'sync'
+  },
+  {
+    id: 'log-4',
+    timestamp: '31.05.2026, 14:10:02',
+    level: 'warning',
+    message: 'Користувач відклав рішення щодо tCPA ставки для Гамма Хелс на 24 години.',
+    actor: 'User',
+    category: 'action'
+  },
+  {
+    id: 'log-5',
+    timestamp: '30.05.2026, 22:15:33',
+    level: 'critical',
+    message: 'Скрипт fetch_audit_data.py припинив роботу через помилку: INVALID_CREDENTIALS. Необхідне ручне оновлення API або OAuth.',
+    actor: 'Script',
+    category: 'system'
+  }
+];
+
+export const FOURTEEN_DAYS_SPEND_DATA = [
+  { date: '18/05', spend: 8100, target: 8500, conversions: 24 },
+  { date: '19/05', spend: 8400, target: 8500, conversions: 28 },
+  { date: '20/05', spend: 7900, target: 8500, conversions: 22 },
+  { date: '21/05', spend: 9300, target: 8500, conversions: 31 },
+  { date: '22/05', spend: 8550, target: 8500, conversions: 29 },
+  { date: '23/05', spend: 6100, target: 6000, conversions: 18 }, // Weekend dips
+  { date: '24/05', spend: 5900, target: 6000, conversions: 19 },
+  { date: '25/05', spend: 8200, target: 8500, conversions: 26 },
+  { date: '26/05', spend: 8900, target: 8500, conversions: 30 },
+  { date: '27/05', spend: 11200, target: 8500, conversions: 35 }, // Spillover/bid adjustments
+  { date: '28/05', spend: 8700, target: 8500, conversions: 27 },
+  { date: '29/05', spend: 9100, target: 8500, conversions: 28 },
+  { date: '30/05', spend: 6800, target: 6000, conversions: 21 },
+  { date: '31/05', spend: 6920, target: 6000, conversions: 22 }
+];

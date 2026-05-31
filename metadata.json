@@ -1,0 +1,6 @@
+{
+  "name": "PPC & AI Agent Operations Center",
+  "description": "Операційний пульт PPC + AI-агентів. Центр управління маркетингом.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,279 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom slick dark scrollbar for operational cockpit look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.3);
+}
+
+/* Base style resets and scroll behavior */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #f8fafc; /* neutral light backdrop as requested */
+  color: #0f172a; /* slate/graphite */
+  font-family: var(--font-sans);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Custom pulse animations or indicator glows */
+@keyframes indicator-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.9); }
+}
+
+.glow-indicator {
+  animation: indicator-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Cozy Milk/Cream UI Theme for optimal cognitive flow and zero glare */
+.theme-light {
+  --bg-main: #fcf7ec; /* Beautiful organic, soft buttery milk and cream backdrop */
+  --bg-card: #fefaee; /* Luxurious, extremely warm and soft cream card background, absolutely NO clinical white! */
+  --bg-container: #f3edd8; /* Cozy baked biscuit/clay latte shading for nesting elements and secondary lists */
+  --border-cozy: #dfd5be; /* Warm latte foam dividing lines */
+  --text-dark: #1f1406; /* Elegant premium espresso bean black-coffee color for absolute contrast & visibility */
+  --text-muted: #574835; /* Earthy organic coffee soil-hazelnut for secondary descriptions & indicators */
+}
+
+.theme-light, .theme-light body {
+  background-color: var(--bg-main) !important;
+  color: var(--text-dark) !important;
+}
+
+/* Forbid pure clinical white/grays in containers; force elegant premium milky/creamy shades */
+.theme-light .bg-white,
+.theme-light .bg-slate-900,
+.theme-light .bg-slate-905,
+.theme-light .bg-slate-950 {
+  background-color: var(--bg-card) !important;
+  border-width: 1px !important;
+  border-color: var(--border-cozy) !important;
+  box-shadow: 0 3px 8px -1px rgba(85, 70, 50, 0.05), 0 1px 4px -1px rgba(85, 70, 50, 0.03) !important;
+}
+
+/* High contrast container fields (consoles, secondary lists, detail pages, internal grids) */
+.theme-light .bg-slate-950\/20,
+.theme-light .bg-slate-900\/10,
+.theme-light .bg-slate-900\/60,
+.theme-light .bg-slate-900\/40,
+.theme-light .bg-slate-955,
+.theme-light .bg-slate-950\/45,
+.theme-light .bg-slate-800\/10,
+.theme-light .bg-slate-500\/5,
+.theme-light .bg-slate-200\/40,
+.theme-light .bg-slate-200\/30,
+.theme-light .bg-slate-100\/10,
+.theme-light .bg-\[\#1e293b\],
+.theme-light .bg-\[\#0f172a\],
+.theme-light .bg-slate-100,
+.theme-light .bg-slate-50 {
+  background-color: var(--bg-container) !important;
+  border: 1px solid var(--border-cozy) !important;
+  color: var(--text-dark) !important;
+}
+
+/* ANTI-BLEED & ANTI-GREY WILD CARDS: Lock potentially light, white, or gray text classes in light mode */
+.theme-light [class*="text-slate-1"],
+.theme-light [class*="text-slate-2"],
+.theme-light [class*="text-slate-3"],
+.theme-light [class*="text-white"],
+.theme-light [class*="text-neutral-1"],
+.theme-light [class*="text-neutral-2"],
+.theme-light [class*="text-neutral-250"],
+.theme-light .text-white,
+.theme-light .text-slate-50,
+.theme-light .text-slate-100,
+.theme-light .text-slate-150,
+.theme-light .text-slate-200,
+.theme-light .text-slate-300,
+.theme-light .text-slate-350 {
+  color: var(--text-dark) !important;
+  font-weight: 600 !important; /* Emphasize line weight for crystal-clear readability */
+}
+
+/* Convert standard mid-tier gray text classes into highly readable dark coffee tones */
+.theme-light [class*="text-slate-4"],
+.theme-light [class*="text-slate-5"],
+.theme-light [class*="text-slate-6"],
+.theme-light [class*="text-slate-7"],
+.theme-light [class*="text-slate-8"],
+.theme-light .text-slate-400,
+.theme-light .text-slate-401,
+.theme-light .text-slate-405,
+.theme-light .text-slate-435,
+.theme-light .text-slate-450,
+.theme-light .text-slate-500,
+.theme-light .text-slate-600,
+.theme-light .text-slate-605,
+.theme-light .text-slate-650 {
+  color: var(--text-muted) !important;
+  font-weight: 550 !important;
+}
+
+/* Handle span, paragraph and label level opacity guards to keep texts robust and black-espresso */
+.theme-light span, 
+.theme-light p, 
+.theme-light label {
+  --tw-text-opacity: 1 !important;
+}
+
+/* Cozy organic milk-foam hover effect for lists, tables, and buttons */
+.theme-light tr:hover,
+.theme-light .hover\:bg-slate-100:hover,
+.theme-light .hover\:bg-slate-200\/80:hover {
+  background-color: #ebdcb9 !important; /* Creamy foam delicious warm-biscuit tint */
+  transition: background-color 0.15s ease-in-out;
+}
+
+/* Ensure monospace text structures are perfectly colored and high contrast */
+.theme-light pre,
+.theme-light pre code,
+.theme-light code {
+  background-color: #faf6eb !important;
+  color: #0b4f80 !important; /* Highly readable deep editorial indigo blue */
+  border: 1px solid var(--border-cozy) !important;
+  font-weight: 600 !important;
+}
+
+/* Cyan/ocean values for charts/logs */
+.theme-light .text-\[\#38bdf8\],
+.theme-light .text-[#38bdf8] {
+  color: #016294 !important;
+  font-weight: 700 !important;
+}
+
+/* Crisp structure dividers */
+.theme-light .border-slate-805\/40,
+.theme-light .border-slate-800\/10,
+.theme-light .border-slate-800\/20,
+.theme-light .border-slate-800\/60,
+.theme-light .border-slate-800\/50,
+.theme-light .border-slate-700,
+.theme-light .border-slate-800,
+.theme-light .border-slate-350,
+.theme-light .border-slate-300,
+.theme-light .border-slate-201,
+.theme-light .border-slate-205,
+.theme-light .border-slate-210,
+.theme-light .border-slate-200 {
+  border-color: var(--border-cozy) !important;
+}
+
+/* Inputs and interactive states */
+.theme-light select,
+.theme-light input {
+  background-color: var(--bg-card) !important;
+  color: var(--text-dark) !important;
+  border: 1.5px solid var(--border-cozy) !important;
+  font-weight: 500 !important;
+}
+
+/* Force `#3a6fcb` background color for all action/secondary/view buttons */
+button.bg-slate-800,
+button[class*="bg-slate-800"] {
+  background-color: #3a6fcb !important;
+  color: #ffffff !important;
+}
+
+button.bg-slate-800:hover,
+button[class*="bg-slate-800"]:hover,
+button.hover\:bg-slate-700:hover {
+  background-color: #2b59ab !important;
+  color: #ffffff !important;
+}
+
+.theme-light select:focus,
+.theme-light input:focus {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15) !important;
+}
+
+/* Purple operational accent */
+.theme-light .bg-indigo-600,
+.theme-light .bg-indigo-650 {
+  background-color: #4f46e5 !important; 
+  color: #ffffff !important;
+}
+
+.theme-light .text-indigo-400,
+.theme-light .text-indigo-500 {
+  color: #4338ca !important;
+  font-weight: 700 !important;
+}
+
+/* Beautiful color-coded notification system on cream-biscotti background */
+.theme-light .bg-emerald-500\/15,
+.theme-light .bg-emerald-500\/10 {
+  background-color: #e2f4e8 !important; /* Organic health green */
+  color: #0e622b !important;
+  border: 1px solid #b7e3c5 !important;
+}
+
+.theme-light .text-emerald-400,
+.theme-light .text-emerald-500 {
+  color: #0e622b !important;
+  font-weight: 700 !important;
+}
+
+.theme-light .bg-rose-500\/15,
+.theme-light .bg-rose-500\/10 {
+  background-color: #fbe6e6 !important; /* Safety red */
+  color: #a11f1f !important;
+  border: 1px solid #eba4a4 !important;
+}
+
+.theme-light .text-rose-500 {
+  color: #a11f1f !important;
+  font-weight: 700 !important;
+}
+
+.theme-light .bg-amber-550\/10,
+.theme-light .bg-amber-500\/15,
+.theme-light .bg-amber-500\/10 {
+  background-color: #fdf5df !important; /* Warning warm amber */
+  color: #92400e !important;
+  border: 1px solid #f9da94 !important;
+}
+
+.theme-light .text-amber-550,
+.theme-light .text-amber-500 {
+  color: #92400e !important;
+  font-weight: 700 !important;
+}
+
+.theme-light .bg-indigo-505\/10,
+.theme-light .bg-indigo-500\/15,
+.theme-light .bg-indigo-500\/10 {
+  background-color: #e6ebf8 !important; /* Highlight info color */
+  color: #2b3bb3 !important;
+  border: 1px solid #bccbf3 !important;
+}
