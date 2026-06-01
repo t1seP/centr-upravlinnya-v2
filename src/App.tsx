@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import StagingQueueModal from './components/StagingQueueModal';
 
 // Pages import
 import CommandCenter from './pages/CommandCenter';
@@ -87,18 +88,242 @@ export default function App() {
   const [syncTime, setSyncTime] = useState('16:35');
   const [isRunningScriptId, setIsRunningScriptId] = useState<string | null>(null);
 
-  // Dynamic log adder helper
-  const handleAddNewLog = (message: string, level: 'info' | 'success' | 'warning' | 'critical' = 'info') => {
+  // Staging / Upload State
+  const [stagedChanges, setStagedChanges] = useState<StagedChange[]>(INITIAL_STAGED_CHANGES);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Dynamic log adder helper with complete parameters (Second Brain format)
+  const handleAddNewLog = (
+    message: string, 
+    level: 'info' | 'success' | 'warning' | 'critical' = 'info',
+    extra?: {
+      clientId?: string;
+      clientName?: string;
+      campaignId?: string;
+      campaignName?: string;
+      changeType?: string;
+      payload?: Record<string, any>;
+      secondBrainPath?: string;
+      agentAnalysisId?: string;
+      actor?: 'User' | 'AI Agent' | 'System' | 'Script';
+      category?: 'action' | 'automation' | 'sync' | 'system' | 'analysis' | 'staging' | 'upload';
+    }
+  ) => {
     const timestamp = new Date().toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const formattedDate = new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    
+    // Generate secondBrainPath if not provided but clientName exists
+    let derivedBrainPath = extra?.secondBrainPath;
+    if (!derivedBrainPath && extra?.clientName) {
+      // replace dots in date with underscores for pleasant paths
+      const fileSafeDate = formattedDate.replace(/\./g, '_');
+      derivedBrainPath = `Робота/Клієнти/${extra.clientName}/логи/${fileSafeDate}.md`;
+    }
+
     const logItem: AuditLog = {
-      id: `log-${Date.now()}`,
-      timestamp: `31.05.2026, ${timestamp}`,
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      timestamp: `${formattedDate}, ${timestamp}`,
       level,
       message,
-      actor: 'User',
-      category: 'action'
+      actor: extra?.actor || 'User',
+      category: extra?.category || 'action',
+      clientId: extra?.clientId,
+      clientName: extra?.clientName,
+      campaignId: extra?.campaignId,
+      campaignName: extra?.campaignName,
+      changeType: extra?.changeType,
+      payload: extra?.payload,
+      secondBrainPath: derivedBrainPath,
+      agentAnalysisId: extra?.agentAnalysisId
     };
     setLogs(prev => [logItem, ...prev]);
+  };
+
+  // Staging handler
+  const handleStageChange = (change: Omit<StagedChange, 'id' | 'stagedAt' | 'status'>) => {
+    const newChange: StagedChange = {
+      ...change,
+      id: `stg-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      stagedAt: new Date().toISOString(),
+      status: 'pending'
+    };
+    setStagedChanges(prev => [...prev, newChange]);
+    
+    handleAddNewLog(
+      `Зміна додана в чергу: ${change.description}`, 
+      'info',
+      {
+        clientId: change.clientId,
+        clientName: change.clientName,
+        changeType: change.type,
+        payload: change.payload,
+        actor: change.source === 'agent_decision' ? 'AI Agent' : 'User',
+        category: 'staging'
+      }
+    );
+  };
+
+  // Bulk Staging Helper (from AI campaign analysis)
+  const handleAddMultipleStagedChanges = (changes: Omit<StagedChange, 'id' | 'stagedAt' | 'status'>[]) => {
+    const newItems = changes.map(change => ({
+      ...change,
+      id: `stg-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      stagedAt: new Date().toISOString(),
+      status: 'pending' as const
+    }));
+    
+    setStagedChanges(prev => [...prev, ...newItems]);
+    
+    changes.forEach(change => {
+      handleAddNewLog(
+        `Зміна додана в чергу з аналізу ШІ: ${change.description}`,
+        'info',
+        {
+          clientId: change.clientId,
+          clientName: change.clientName,
+          changeType: change.type,
+          payload: change.payload,
+          actor: 'AI Agent',
+          category: 'staging'
+        }
+      );
+    });
+  };
+
+  const handleRemoveStagedChange = (id: string) => {
+    const found = stagedChanges.find(c => c.id === id);
+    setStagedChanges(prev => prev.filter(c => c.id !== id));
+    
+    if (found) {
+      if (found.decisionId) {
+        setDecisions(prev => prev.map(d => d.id === found.decisionId ? { ...d, status: 'pending' } : d));
+      }
+
+      handleAddNewLog(
+        `Зміна видалена з черги вигрузки: ${found.description}`, 
+        'warning',
+        {
+          clientId: found.clientId,
+          clientName: found.clientName,
+          changeType: found.type,
+          payload: found.payload,
+          actor: 'User',
+          category: 'staging'
+        }
+      );
+    }
+  };
+
+  const handleStageDecision = (decision: Decision) => {
+    let stagingType: StagedChange['type'] = 'pause_asset';
+    if (decision.actionType === 'add_negatives') stagingType = 'add_negatives';
+    else if (decision.actionType === 'pause_keywords') stagingType = 'pause_keyword';
+    else if (decision.actionType === 'update_assets') stagingType = 'pause_asset';
+    else if (decision.actionType === 'optimize_bids') stagingType = 'change_bid_strategy';
+    else if (decision.actionType === 'campaign_create') stagingType = 'create_campaign';
+
+    handleStageChange({
+      clientId: decision.clientId,
+      clientName: decision.clientName,
+      type: stagingType,
+      description: decision.title,
+      payload: decision.payload,
+      source: 'agent_decision',
+      decisionId: decision.id
+    });
+
+    setDecisions(prev => prev.map(d => d.id === decision.id ? { ...d, status: 'staged' } : d));
+  };
+
+  const handleUploadChanges = () => {
+    setIsUploading(true);
+    
+    const pendingChanges = stagedChanges.filter(c => c.status === 'pending');
+    if (pendingChanges.length === 0) {
+      setIsUploading(false);
+      return;
+    }
+
+    handleAddNewLog(
+      `Запущено вигрузку в Google Ads (${pendingChanges.length} змін, типи: ${Array.from(new Set(pendingChanges.map(c => c.type))).join(', ')})`,
+      'info',
+      {
+        category: 'upload',
+        actor: 'User'
+      }
+    );
+
+    setStagedChanges(prev => prev.map(c => c.status === 'pending' ? { ...c, status: 'uploading' } : c));
+
+    setTimeout(() => {
+      setStagedChanges(prev => prev.map(c => c.status === 'uploading' ? { ...c, status: 'success' } : c));
+      
+      const uploadedDecisionIds = pendingChanges.map(c => c.decisionId).filter(Boolean) as string[];
+      if (uploadedDecisionIds.length > 0) {
+        setDecisions(prev => prev.map(d => uploadedDecisionIds.includes(d.id) ? { ...d, status: 'approved' } : d));
+      }
+
+      pendingChanges.forEach(change => {
+        handleAddNewLog(
+          `Успішно застосовано в Google Ads: ${change.description}`, 
+          'success',
+          {
+            clientId: change.clientId,
+            clientName: change.clientName,
+            changeType: change.type,
+            payload: change.payload,
+            actor: 'System',
+            category: 'upload'
+          }
+        );
+      });
+
+      handleAddNewLog(
+        `Вигрузка завершена: ${pendingChanges.length} змін успішно застосовано в Google Ads`, 
+        'success',
+        {
+          category: 'upload',
+          actor: 'System'
+        }
+      );
+
+      setIsUploading(false);
+
+      setTimeout(() => {
+        setStagedChanges(prev => prev.filter(c => c.status !== 'success'));
+      }, 2000);
+
+    }, 3050);
+  };
+
+  // Manual trigger: Refresh Data button
+  const handleRefreshData = () => {
+    setIsRefreshing(true);
+    handleAddNewLog(
+      'Синхронізація: Запущено ручне оновлення даних з Google Ads API.',
+      'info',
+      {
+        category: 'sync',
+        actor: 'User'
+      }
+    );
+
+    setTimeout(() => {
+      const currentTime = new Date().toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+      setSyncTime(currentTime);
+      setIsRefreshing(false);
+      
+      handleAddNewLog(
+        `Синхронізація: Дані успішно завантажено та актувально оновлено на ${currentTime}.`,
+        'success',
+        {
+          category: 'sync',
+          actor: 'System'
+        }
+      );
+    }, 2500);
   };
 
   // Decision Approvers
@@ -106,7 +331,6 @@ export default function App() {
     const matchedDecision = decisions.find(d => d.id === id);
     if (!matchedDecision) return;
 
-    // Approve locally
     setDecisions(prev => prev.map(d => {
       if (d.id === id) {
         const stats = d.feedbackStats || { timesRejected: 0, timesApproved: 0 };
@@ -122,7 +346,6 @@ export default function App() {
       return d;
     }));
 
-    // Improve health score dynamically
     setClients(prev => prev.map(c => {
       if (c.id === matchedDecision.clientId) {
         const nextScore = Math.min(100, c.healthScore + 8);
@@ -136,7 +359,6 @@ export default function App() {
       return c;
     }));
 
-    // If it was negatives, we simulate appending to notes
     if (matchedDecision.actionType === 'add_negatives' && matchedDecision.payload.negatives) {
       setSearchTerms(prev => prev.map(t => 
         t.clientId === matchedDecision.clientId && matchedDecision.payload.negatives?.includes(t.term)
@@ -145,11 +367,7 @@ export default function App() {
       ));
     }
 
-    // Add log
-    handleAddNewLog(
-      `Рішення затверджено: "${matchedDecision.title}" для клієнта "${matchedDecision.clientName}" успішно впроваджено.`,
-      'success'
-    );
+    handleStageDecision(matchedDecision);
   };
 
   const handleRejectDecision = (id: string, note?: string) => {
@@ -172,9 +390,17 @@ export default function App() {
       }
       return d;
     }));
+
     handleAddNewLog(
-      `Рішення відхилено: "${matchedDecision.title}" відмінено спеціалістом.${note ? ` Причина: ${note}` : ''}`, 
-      'warning'
+      `Рекомендація відхилена: "${matchedDecision.title}"${note ? `. Коментар: "${note}"` : ''}`, 
+      'warning',
+      {
+        clientId: matchedDecision.clientId,
+        clientName: matchedDecision.clientName,
+        payload: { note, title: matchedDecision.title, actionType: matchedDecision.actionType },
+        category: 'action',
+        actor: 'User'
+      }
     );
   };
 
@@ -183,7 +409,18 @@ export default function App() {
     if (!matchedDecision) return;
 
     setDecisions(prev => prev.map(d => d.id === id ? { ...d, status: 'deferred' } : d));
-    handleAddNewLog(`Рішення відкладено: "${matchedDecision.title}" перенесено на наступний цикл аудиту.`, 'info');
+    
+    handleAddNewLog(
+      `Рішення відкладено: "${matchedDecision.title}" перенесено на наступний цикл аудиту.`, 
+      'info',
+      {
+        clientId: matchedDecision.clientId,
+        clientName: matchedDecision.clientName,
+        payload: { title: matchedDecision.title },
+        category: 'action',
+        actor: 'User'
+      }
+    );
   };
 
   // Billing refills
@@ -318,9 +555,22 @@ export default function App() {
 
   // Manual code triggers
   const handleTriggerScript = (id: string) => {
+    const script = scripts.find(s => s.id === id);
+    if (!script) return;
+
     setIsRunningScriptId(id);
     setScripts(prev => prev.map(s => s.id === id ? { ...s, status: 'active' } : s));
     
+    handleAddNewLog(
+      `Автоматизація: Скрипт "${script.name}" (${script.filename}) запущено вручну`,
+      'info',
+      {
+        category: 'automation',
+        actor: 'User',
+        payload: { filename: script.filename }
+      }
+    );
+
     setTimeout(() => {
       setIsRunningScriptId(null);
       // Change status to active if failed
@@ -335,6 +585,16 @@ export default function App() {
         }
         return s;
       }));
+
+      handleAddNewLog(
+        `Автоматизація: Скрипт "${script.name}" завершив роботу успішно. Всі вхідні пакети API верифіковані.`,
+        'success',
+        {
+          category: 'automation',
+          actor: 'Script',
+          payload: { filename: script.filename, result: 'success' }
+        }
+      );
     }, 2000);
   };
 
@@ -380,7 +640,7 @@ export default function App() {
             decisions={decisions}
             agents={agents}
             scripts={scripts}
-            onApproveDecision={handleApproveDecision}
+            onStageDecision={handleStageDecision}
             onRejectDecision={handleRejectDecision}
             onPostponeDecision={handlePostponeDecision}
             onSelectClient={handleSelectClient}
@@ -411,6 +671,9 @@ export default function App() {
             onAddDecisionLog={handleAddNewLog}
             currentTheme={currentTheme}
             setCurrentTab={setCurrentTab}
+            onStageChange={handleStageChange}
+            stagedChanges={stagedChanges}
+            onAddMultipleStagedChanges={handleAddMultipleStagedChanges}
           />
         );
       case 'balances':
@@ -440,7 +703,7 @@ export default function App() {
           <AgentRecommendations
             agents={agents}
             decisions={decisions}
-            onApproveDecision={handleApproveDecision}
+            onStageDecision={handleStageDecision}
             onRejectDecision={handleRejectDecision}
             currentTheme={currentTheme}
             onAddDecisionLog={handleAddNewLog}
@@ -503,6 +766,8 @@ export default function App() {
             onAddAssets={handleAddAssets}
             onUpdateAsset={handleUpdateAsset}
             initialClientId={selectedClientId}
+            onStageChange={handleStageChange}
+            stagedChanges={stagedChanges}
           />
         );
       default:
@@ -528,6 +793,8 @@ export default function App() {
         currentTheme={currentTheme}
         setCurrentTheme={setCurrentTheme}
         onToggleChatWidget={() => setIsChatOpen(prev => !prev)}
+        pendingStagedChangesCount={stagedChanges.filter(c => c.status === 'pending').length}
+        onOpenUploadModal={() => setIsUploadModalOpen(true)}
       />
 
       {/* Main viewport area */}
@@ -543,6 +810,11 @@ export default function App() {
           currentTheme={currentTheme}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
+          onOpenUploadModal={() => setIsUploadModalOpen(true)}
+          pendingStagedChangesCount={stagedChanges.filter(c => c.status === 'pending').length}
+          isUploading={isUploading}
+          onRefreshData={handleRefreshData}
+          isRefreshing={isRefreshing}
         />
 
         {/* Dynamic page contents pane */}
@@ -572,6 +844,17 @@ export default function App() {
         currentTheme={currentTheme}
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
+      />
+
+      {/* Staging Drawer Slideout Modal */}
+      <StagingQueueModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        stagedChanges={stagedChanges}
+        onRemoveStagedChange={handleRemoveStagedChange}
+        onUploadChanges={handleUploadChanges}
+        isUploading={isUploading}
+        currentTheme={currentTheme}
       />
 
     </div>

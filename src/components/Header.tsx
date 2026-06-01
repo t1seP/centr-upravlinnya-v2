@@ -24,6 +24,8 @@ interface HeaderProps {
   onOpenUploadModal: () => void;
   pendingStagedChangesCount: number;
   isUploading: boolean;
+  onRefreshData?: () => void;
+  isRefreshing?: boolean;
 }
 
 export default function Header({
@@ -37,7 +39,9 @@ export default function Header({
   setSearchQuery,
   onOpenUploadModal,
   pendingStagedChangesCount,
-  isUploading
+  isUploading,
+  onRefreshData,
+  isRefreshing = false
 }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -105,6 +109,23 @@ export default function Header({
             }`}
           />
         </div>
+
+        {/* Refresh Sync Data button */}
+        {onRefreshData && (
+          <button
+            onClick={onRefreshData}
+            disabled={isRefreshing || isAuditing}
+            className={`px-3 py-1.5 rounded text-xs font-medium font-sans flex items-center gap-1.5 cursor-pointer select-none transition ${
+              isRefreshing
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-wait'
+                : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-350 border border-slate-200/40 dark:border-slate-750'
+            }`}
+            title="Синхронізувати та оновити дані"
+          >
+            <RefreshCw size={13} className={`${isRefreshing ? 'animate-spin text-indigo-500' : 'text-slate-400'}`} />
+            <span>{isRefreshing ? 'Оновлення...' : 'Оновити дані'}</span>
+          </button>
+        )}
 
         {/* Sync Trigger button */}
         <button

@@ -130,7 +130,15 @@ export interface AuditLog {
   level: 'info' | 'warning' | 'success' | 'critical';
   message: string;
   actor: 'User' | 'AI Agent' | 'System' | 'Script';
-  category: 'action' | 'automation' | 'sync' | 'system';
+  category: 'action' | 'automation' | 'sync' | 'system' | 'analysis' | 'staging' | 'upload';
+  clientId?: string;
+  clientName?: string;
+  campaignId?: string;
+  campaignName?: string;
+  changeType?: string;
+  payload?: Record<string, any>;
+  secondBrainPath?: string;    // шлях куди піде цей запис в Second Brain
+  agentAnalysisId?: string;    // прив'язка до аналізу агента якщо є
 }
 
 export interface AgentChatMessage {
@@ -205,4 +213,28 @@ export interface StagedChange {
   stagedAt: string;
   status: 'pending' | 'uploading' | 'success' | 'error';
   errorMessage?: string;
+}
+
+export interface AnalysisChange {
+  id: string;
+  priority: 'high' | 'medium' | 'low';
+  problem: string;
+  solution: string;
+  impact: string;
+  reasoning: string;
+  action_type: StagedChange['type'] | 'test_recommendation';
+  payload: Record<string, any>;
+  selected: boolean;
+}
+
+export interface AgentAnalysisResult {
+  id: string;
+  clientId: string;
+  campaignId: string;
+  campaignName: string;
+  analyzedAt: string;
+  summary: string;
+  campaign_health: 'good' | 'warning' | 'critical' | 'stable';
+  changes: AnalysisChange[];
+  agent_notes: string;
 }

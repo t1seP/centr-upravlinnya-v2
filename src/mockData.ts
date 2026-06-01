@@ -12,7 +12,9 @@ import {
   AdAsset,
   AdGroup,
   CampaignDraft,
-  StagedChange
+  StagedChange,
+  AnalysisChange,
+  AgentAnalysisResult
 } from './types';
 
 export const INITIAL_CLIENTS: Client[] = [
@@ -1076,3 +1078,109 @@ export const INITIAL_STAGED_CHANGES: StagedChange[] = [
     status: 'pending'
   }
 ];
+
+export function generateMockAnalysis(campaign: Campaign, client: Client): AgentAnalysisResult {
+  const isCpaTooHigh = campaign.cpa > 600 || (campaign.cpa > 0 && campaign.cpa > client.cpc * 15);
+  const isCtrTooLow = campaign.ctr < 3.5;
+  const currency = client.currency || 'UAH';
+
+  const changes: AnalysisChange[] = [];
+
+  if (isCpaTooHigh) {
+    changes.push({
+      id: `an-${campaign.id}-1`,
+      priority: 'high',
+      problem: `Висока вартість конверсії (CPA: ${campaign.cpa} ${currency}) в порівнянні з цільовою.`,
+      solution: `Знизити tCPA ліміт або переключити стратегію на максимізацію цінності з обмеженням рентабельності.`,
+      impact: 'Зменшення CPA на ~22% та збереження бюджету',
+      reasoning: `Кампанія "${campaign.name}" витрачає значну частину бюджету на дорогі кліки, які не приносять конверсій відповідно до очікуваного ROI. Регулювання стратегії призначення ставок дозволить стабілізувати ціну за дію.`,
+      action_type: 'change_bid_strategy',
+      payload: { campaignId: campaign.id, newStrategy: 'TARGET_CPA', targetCpa: Math.round(campaign.cpa * 0.8) },
+      selected: true
+    });
+  } else {
+    changes.push({
+      id: `an-${campaign.id}-1`,
+      priority: 'medium',
+      problem: `Невикористаний потенціал бюджету при низькому CPA (${campaign.cpa} ${currency}).`,
+      solution: `Збільшити добовий бюджет на 30% для масштабування успішних конверсій.`,
+      impact: 'Збільшення кількості конверсій на ~15-20%',
+      reasoning: `Кампанія демонструє чудові показники ціни за конверсію. Проте вона обмежена поточним бюджетом і втрачає частину показів у пошуковій мережі через обмеження фінансування.`,
+      action_type: 'update_budget',
+      payload: { campaignId: campaign.id, newBudget: Math.round(campaign.budget * 1.3) },
+      selected: true
+    });
+  }
+
+  if (isCtrTooLow) {
+    changes.push({
+      id: `an-${campaign.id}-2`,
+      priority: 'high',
+      problem: `Низька клікабельність оголошень (CTR: ${campaign.ctr}%).`,
+      solution: `Призупинити неефективні заголовки з низьким показником та додати 3 нові варіанти з фокусом на УТП.`,
+      impact: 'Підвищення CTR на ~1.5% та зниження середнього CPC',
+      reasoning: `Поточні активні оголошення мають низьку релевантність для користувачів. Google знижує рейтинг оголошення через низький CTR, що призводить до підвищення вартості кліку.`,
+      action_type: 'pause_asset',
+      payload: { campaignId: campaign.id, assetId: 'asset-low-ctr-1', text: 'Купити дешево у нас' },
+      selected: true
+    });
+  } else {
+    changes.push({
+      id: `an-${campaign.id}-2`,
+      priority: 'low',
+      problem: `CTR має хороші показники (${campaign.ctr}%), проте є можливість оптимізувати розклад показів.`,
+      solution: `Скоригувати розклад показів оголошень: знизити ставки на -15% у нічні години (00:00 - 06:00).`,
+      impact: 'Збереження ~5% неефективних витрат',
+      reasoning: `Статистика показує, що хоча користувачі активно клікають вночі, конверсійність у цей час падає на 65%. Зменшення ставок у нічний час вивільнить бюджет для більш конверсійного періоду дня.`,
+      action_type: 'update_ad_schedule',
+      payload: { campaignId: campaign.id, schedule: 'reduce_night_bids_15' },
+      selected: false
+    });
+  }
+
+  // Always add one more medium or low action to have a diverse cards selection
+  changes.push({
+    id: `an-${campaign.id}-3`,
+    priority: 'medium',
+    problem: `Виявлено нецільовий трафік за пошуковими запитами типу "безкоштовно", "форум", "відгуки".`,
+    solution: `Додати 5 нових мінус-слів на рівні кампанії.`,
+    impact: 'Очищення трафіку та підвищення коефіцієнта конверсії',
+    reasoning: `За останні 14 днів зафіксовано 32 кліки за запитами пошуку з інформаційним інтентом без наміру покупки. Додавання мінус-слів запобіжить цим нецільовим витратам.`,
+    action_type: 'add_negatives',
+    payload: { campaignId: campaign.id, negatives: ['безкоштовно', 'форум', 'відгуки', 'бв', 'секонд хенд'] },
+    selected: true
+  });
+
+  changes.push({
+    id: `an-${campaign.id}-4`,
+    priority: 'low',
+    problem: `Рекомендація щодо тестування нових розширень структурованих описових фрагментів (Snippets).`,
+    solution: `Протестувати додавання списку брендів або послуг у розширеннях.`,
+    impact: 'Розширення площі оголошення в пошуковій видачі на 10%',
+    reasoning: `Додавання структурованих фрагментів підвищує візуальний об'єм оголошення та дає користувачеві більше інформації ще до кліку, що покращує показник якості.`,
+    action_type: 'test_recommendation',
+    payload: { campaignId: campaign.id, snippetText: 'Послуги, Бренди' },
+    selected: false
+  });
+
+  const campaign_health = campaign.status === 'paused' ? 'stable' : isCpaTooHigh ? 'critical' : isCtrTooLow ? 'warning' : 'good';
+
+  const healthLabels = {
+    good: 'Відмінний стан',
+    warning: 'Потребує оптимізації',
+    critical: 'Критичні показники',
+    stable: 'Кампанія на паузі'
+  };
+
+  return {
+    id: `an-res-${campaign.id}-${Date.now()}`,
+    clientId: campaign.clientId,
+    campaignId: campaign.id,
+    campaignName: campaign.name,
+    analyzedAt: new Date().toISOString(),
+    summary: `Кампанія "${campaign.name}" у стані "${healthLabels[campaign_health]}". Виявлено ${changes.length} зон оптимізації, з яких ${changes.filter(c => c.priority === 'high').length} мають критичний пріоритет.`,
+    campaign_health,
+    changes,
+    agent_notes: `Рекомендовано регулярно перевіряти пошукові терміни кожні 3 дні. Коефіцієнт конверсії стабільний, проте є тренд до подорожчання аукціону.`
+  };
+}

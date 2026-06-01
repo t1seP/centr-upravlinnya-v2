@@ -36,11 +36,13 @@ import {
   ThumbsUp,
   FileSpreadsheet,
   AlertTriangle,
-  FolderLock
+  FolderLock,
+  Clock
 } from 'lucide-react';
 import { Client, Campaign, Decision, AIAgent, AuditLog, SearchTermItem, StagedChange } from '../types';
 import AdAssets from './AdAssets';
 import { INITIAL_AD_ASSETS, INITIAL_AD_GROUPS } from '../mockData';
+import AnalysisPanel from '../components/AnalysisPanel';
 
 interface ClientDetailProps {
   clients: Client[];
@@ -55,6 +57,7 @@ interface ClientDetailProps {
   setCurrentTab: (tab: string) => void;
   onStageChange: (change: any) => void;
   stagedChanges: StagedChange[];
+  onAddMultipleStagedChanges?: (changes: any[]) => void;
 }
 
 export default function ClientDetail({
@@ -69,7 +72,8 @@ export default function ClientDetail({
   currentTheme,
   setCurrentTab,
   onStageChange,
-  stagedChanges
+  stagedChanges,
+  onAddMultipleStagedChanges
 }: ClientDetailProps) {
   
   // Pick active client
@@ -108,6 +112,14 @@ export default function ClientDetail({
 
   // Local Campaign State
   const [localCampaigns, setLocalCampaigns] = useState<Campaign[]>(campaigns);
+
+  // Sync state with parent props updates (e.g. on successful upload)
+  React.useEffect(() => {
+    setLocalCampaigns(campaigns);
+  }, [campaigns]);
+
+  // AI technical audit state tracking
+  const [analyzedCampaignId, setAnalyzedCampaignId] = useState<string | null>(null);
 
   // Local AdAssets and AdGroups state inside ClientDetail from mockData
   const [adAssets, setAdAssets] = useState<any[]>(INITIAL_AD_ASSETS);
@@ -360,12 +372,20 @@ export default function ClientDetail({
 
   // Toggle Campaign status handler
   const handleToggleCampaignStatus = (id: string, currentStatus: 'active' | 'paused' | 'removed') => {
+    const campaign = localCampaigns.find(c => c.id === id);
+    if (!campaign) return;
+
+    const action = currentStatus === 'active' ? 'Призупинити' : 'Запустити';
     const nextStatus = currentStatus === 'active' ? 'paused' : 'active';
-    setLocalCampaigns(prev => prev.map(c => c.id === id ? { ...c, status: nextStatus } : c));
-    onAddDecisionLog(
-      `Каб. ${activeClient.name}: Статус кампанії ${localCampaigns.find(c => c.id === id)?.name} змінено на [${nextStatus.toUpperCase()}]`,
-      nextStatus === 'active' ? 'success' : 'warning'
-    );
+    
+    onStageChange({
+      clientId: activeClient.id,
+      clientName: activeClient.name,
+      type: 'pause_campaign',
+      description: `Запит: ${action} кампанію "${campaign.name}"`,
+      payload: { campaignId: id, campaignName: campaign.name, status: nextStatus },
+      source: 'manual'
+    });
   };
 
   // Skip / Approve search terms queue
@@ -910,57 +930,105 @@ export default function ClientDetail({
                       efficiencyClass = "bg-rose-500/10 text-rose-700 border border-rose-500/20 font-bold font-mono text-[9px]";
                     }
 
+                    const isAnalyzed = analyzedCampaignId === camp.id;
+                    const stagedCampaignChange = stagedChanges.find(
+                      sc => sc.type === 'pause_campaign' && sc.payload?.campaignId === camp.id && sc.status === 'pending'
+                    );
+
                     return (
-                      <tr key={camp.id} className="hover:bg-slate-800/5 transition-colors">
-                        <td className="py-3 px-4 font-semibold text-slate-900 dark:text-slate-100 select-all max-w-xs truncate">
-                          {camp.name}
-                        </td>
-                        <td className="py-3 text-center">
-                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase ${
-                            camp.status === 'active' 
-                              ? 'bg-emerald-550/10 text-emerald-550 border border-emerald-555/20' 
-                              : 'bg-amber-550/10 text-amber-550 border border-amber-555/20'
-                          }`}>
-                            {camp.status}
-                          </span>
-                        </td>
-                        <td className="py-3 text-right font-mono text-slate-800 dark:text-neutral-200">{camp.budget} {activeClient.currency}</td>
-                        <td className="py-3 text-right font-mono text-slate-450">{camp.spent} {activeClient.currency}</td>
-                        <td className="py-3 text-right font-mono text-slate-500">{camp.impressions.toLocaleString()}</td>
-                        <td className="py-3 text-right font-mono text-slate-500">{camp.clicks.toLocaleString()}</td>
-                        <td className="py-3 text-center">
-                          <span className={`px-1.5 py-0.5 rounded font-mono text-[10px] ${ctrStyle}`}>
-                            {camp.ctr}%
-                          </span>
-                        </td>
-                        <td className="py-3 text-right font-mono text-slate-550">{camp.cpc} UAH</td>
-                        <td className="py-3 text-center font-mono font-bold text-slate-800 dark:text-white">
-                          {camp.conversions}
-                        </td>
-                        <td className="py-3 text-right">
-                          <span className={`px-1.5 py-0.5 rounded font-mono text-[10px] ${cpaStyle}`}>
-                            {camp.cpa} UAH
-                          </span>
-                        </td>
-                        <td className="py-3 text-center">
-                          <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] ${efficiencyClass}`}>
-                            {efficiencyLabel}
-                          </span>
-                        </td>
-                        <td className="py-3 text-right px-4">
-                          <button
-                            onClick={() => handleToggleCampaignStatus(camp.id, camp.status)}
-                            className={`p-1 rounded cursor-pointer transition ${
-                              camp.status === 'active' 
-                                ? 'text-amber-500 hover:bg-amber-500/10' 
-                                : 'text-emerald-500 hover:bg-emerald-500/10'
-                            }`}
-                            title={camp.status === 'active' ? 'Зупинити на паузу' : 'Запустити кампанію'}
-                          >
-                            {camp.status === 'active' ? <Pause size={12} className="stroke-[2.5px]" /> : <Play size={12} className="stroke-[2.5px]" />}
-                          </button>
-                        </td>
-                      </tr>
+                      <React.Fragment key={camp.id}>
+                        <tr className="hover:bg-slate-800/5 transition-colors">
+                          <td className="py-3 px-4 font-semibold text-slate-900 dark:text-slate-100 select-all max-w-xs truncate">
+                            {camp.name}
+                          </td>
+                          <td className="py-3 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase ${
+                                camp.status === 'active' 
+                                  ? 'bg-emerald-550/10 text-emerald-550 border border-emerald-555/20' 
+                                  : 'bg-amber-550/10 text-amber-550 border border-amber-555/20'
+                              }`}>
+                                {camp.status}
+                              </span>
+                              {stagedCampaignChange && (
+                                <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[7.5px] font-mono font-bold uppercase bg-amber-500/10 text-amber-500 border border-amber-500/20" title="В черзі на вивантаження">
+                                  <Clock size={8} /> Staged
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 text-right font-mono text-slate-800 dark:text-neutral-200">{camp.budget} {activeClient.currency}</td>
+                          <td className="py-3 text-right font-mono text-slate-450">{camp.spent} {activeClient.currency}</td>
+                          <td className="py-3 text-right font-mono text-slate-500">{camp.impressions.toLocaleString()}</td>
+                          <td className="py-3 text-right font-mono text-slate-500">{camp.clicks.toLocaleString()}</td>
+                          <td className="py-3 text-center">
+                            <span className={`px-1.5 py-0.5 rounded font-mono text-[10px] ${ctrStyle}`}>
+                              {camp.ctr}%
+                            </span>
+                          </td>
+                          <td className="py-3 text-right font-mono text-slate-550">{camp.cpc} UAH</td>
+                          <td className="py-3 text-center font-mono font-bold text-slate-800 dark:text-white">
+                            {camp.conversions}
+                          </td>
+                          <td className="py-3 text-right">
+                            <span className={`px-1.5 py-0.5 rounded font-mono text-[10px] ${cpaStyle}`}>
+                              {camp.cpa} UAH
+                            </span>
+                          </td>
+                          <td className="py-3 text-center">
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] ${efficiencyClass}`}>
+                              {efficiencyLabel}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right px-4">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => setAnalyzedCampaignId(isAnalyzed ? null : camp.id)}
+                                className={`p-1 rounded cursor-pointer transition ${
+                                  isAnalyzed
+                                    ? 'bg-indigo-650 text-white shadow-sm'
+                                    : 'text-indigo-500 hover:bg-indigo-500/10'
+                                }`}
+                                title="Запустити ШІ-аналіз кампанії"
+                              >
+                                <Sparkles size={12} className="stroke-[2.5px]" />
+                              </button>
+                              
+                              <button
+                                onClick={() => handleToggleCampaignStatus(camp.id, camp.status)}
+                                className={`p-1 rounded cursor-pointer transition ${
+                                  camp.status === 'active' 
+                                    ? 'text-amber-500 hover:bg-amber-500/10' 
+                                    : 'text-emerald-500 hover:bg-emerald-500/10'
+                                }`}
+                                title={camp.status === 'active' ? 'Зупинити на паузу' : 'Запустити кампанію'}
+                              >
+                                {camp.status === 'active' ? <Pause size={12} className="stroke-[2.5px]" /> : <Play size={12} className="stroke-[2.5px]" />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isAnalyzed && (
+                          <tr className="bg-slate-500/[0.015]">
+                            <td colSpan={12} className="p-4 px-5">
+                              <AnalysisPanel
+                                campaign={camp}
+                                client={activeClient}
+                                currentTheme={currentTheme}
+                                onAddStagedChanges={(items) => {
+                                  if (onAddMultipleStagedChanges) {
+                                    onAddMultipleStagedChanges(items);
+                                  } else {
+                                    items.forEach(i => onStageChange(i));
+                                  }
+                                }}
+                                onClose={() => setAnalyzedCampaignId(null)}
+                                onAddDecisionLog={onAddDecisionLog}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
